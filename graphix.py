@@ -9,14 +9,13 @@ import numpy as np
 from scipy import ndimage
 import csv
 import glob as glob
-from matplotlib.widgets import Slider
+
 class lineProfile():
 
     def __init__(self, vmin, vmax,cut):
         self.vmax = vmax
         self.vmin = vmin
         self.figure = plt.figure(figsize = (5,5))
-        self.figure.subplots_adjust(bottom=0.3)
         if cut==True:
             grid = gs.GridSpec(2, 1, height_ratios=[2, 1])
             self.axMap = self.figure.add_subplot(grid[0])
@@ -26,25 +25,26 @@ class lineProfile():
             self.figure.canvas.mpl_connect('button_press_event', self.mapClick)
             self.colormap = 'YlGnBu_r'
             self.figure.show()
-        else: #without the cut
+        else:
+            #grid = gs.GridSpec(2, 1, height_ratios=[2, 1])
             self.axMap = self.figure.add_subplot(111)
-            self.axmin = self.figure.add_axes([0.25, 0.1, 0.65, 0.03])
-            self.axmax = self.figure.add_axes([0.25, 0.15, 0.65, 0.03])
-            self.smin = Slider(self.axmin, 'Min', -4, 8, valinit =0)
-            self.smax = Slider(self.axmax, 'Max', -4, 8, valinit =4)
+            #self.axCut = self.figure.add_subplot(grid[1])
+            #self.axCut.set_xlabel('Distance (nm)')
+            #self.axCut.set_ylabel('dI/dV (arb. units)')
+            self.figure.canvas.mpl_connect('button_press_event', self.mapClick)
             self.colormap = 'YlGnBu_r'
             self.figure.show()
 
     def draw(self):
-        self.im1 = self.axMap.imshow(np.fliplr(self.linescan.conductance), aspect='auto', extent=[min(self.linescan.bias), max(self.linescan.bias), min(self.linescan.distance), max(self.linescan.distance)],interpolation=None, cmap=self.colormap, vmin=self.vmin, vmax=self.vmax)
-        self.smin.on_changed(self.update)
-        self.smax.on_changed(self.update)
-        #self.figure.colorbar(self.im1) #buggy colorbar
+        self.axMap.imshow(np.fliplr(self.linescan.conductance), aspect='auto', extent=[min(self.linescan.bias), max(self.linescan.bias), min(self.linescan.distance), max(self.linescan.distance)],interpolation=None, cmap=self.colormap, vmin=self.vmin, vmax=self.vmax)
 
     def mapLoad(self,filenames):
         self.linescan = nanonis.linescan()
         self.linescan.load(filenames)
+
         self.axMap.set_title(self.linescan.name[0]+' - '+self.linescan.name[-1], fontweight='bold')
+        #self.cmin = self.linescan.conductance.min()
+        #self.cmax = self.linescan.conductance.max()
         self.cmin = self.linescan.conductance.min()
         self.cmax = self.linescan.conductance.max()
         self.axMap.set_ylabel("Distance (nm)")
@@ -126,11 +126,44 @@ class lineProfile():
             writer = csv.writer(csvfile)
             [writer.writerow(r) for r in matrix]
     
+    #def ls_offset(self,delta,stepnumber,)
+
+    def stepfinder(self,delta,cut,change):
+        self.offset_steps_a = np.zeros(5)
+        self.offset_steps_b = np.zeros(5)
+        
+        deltaIdx = self.linescan.energyFind(delta)
+        cutIdx = self.linescan.energyFind(cut)
+        count_a = 0
+        count_b = 0
+        diff = abs(self.linescan.conductance[0,deltaIdx]-self.linescan.conductance[0,0])
+        print(diff)
+        for i in range(1, self.linescan.conductance.shape[0]):
+            if self.linescan.conductance[i,cutIdx] - self.linescan.conductance[i-1,cutIdx] > diff*change:
+                self.offset_steps_a[count_a] = int(i)
+                count_a +=1
+        for i in range(1, self.linescan.conductance.shape[0]):
+            if self.linescan.conductance[i-1,cutIdx] - self.linescan.conductance[i,cutIdx] > diff*change:
+                self.offset_steps_b[count_b] = int(i)
+                count_b +=1
+            self.offset_steps_a = self.offset_steps_a.astype(int)
+            self.offset_steps_b = self.offset_steps_b.astype(int)
+        return self.offset_steps_a, self.offset_steps_b 
+
+    def random_offset(self, offset, delta,cut,change):
+        self.stepfinder(delta,cut,change)
+        print(self.stepfinder(delta,cut,change))
+        energy_px = self.linescan.bias[0] - self.linescan.bias[1]
+        offset_px = int(offset/energy_px)
+        for i in range (0,len(self.offset_steps_a)):
+            if self.offset_steps_b[i] == 0:
+                self.linescan.conductance[self.offset_steps_a[i]:-1,:] = np.roll(self.linescan.conductance[self.offset_steps_a[i]:-1,:], -offset_px)
+                break
+            self.linescan.conductance[self.offset_steps_a[i]:self.offset_steps_b[i],:] = np.roll(self.linescan.conductance[self.offset_steps_a[i]:self.offset_steps_b[i],:], -offset_px)
+            print('rolled')
+
     #def locatePoints(self, filenames, filename):
-    def update(self, val):
-        self.im1.set_clim([self.smin.val,self.smax.val])
-        self.figure.canvas.draw()
-    
+
 class multilineprofile():
     def LSload(self, start, end ,datestamp, path):
         filenames = []
