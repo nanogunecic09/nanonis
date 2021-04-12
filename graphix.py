@@ -32,13 +32,13 @@ class lineProfile():
             self.axmax = self.figure.add_axes([0.25, 0.15, 0.65, 0.03])
             self.smin = Slider(self.axmin, 'Min', -4, 8, valinit =0)
             self.smax = Slider(self.axmax, 'Max', -4, 8, valinit =4)
+            self.smin.on_changed(self.update)
+            self.smax.on_changed(self.update)
             #self.colormap = 'YlGnBu_r'
             self.figure.show()
 
     def draw(self):
         self.im1 = self.axMap.imshow(np.fliplr(self.linescan.conductance), aspect='auto', extent=[min(self.linescan.bias), max(self.linescan.bias), min(self.linescan.distance), max(self.linescan.distance)],interpolation=None, vmin=self.vmin, vmax=self.vmax)
-        self.smin.on_changed(self.update)
-        self.smax.on_changed(self.update)
         #self.figure.colorbar(self.im1) #buggy colorbar
 
     def mapLoad(self,filenames):
