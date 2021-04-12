@@ -9,13 +9,14 @@ import numpy as np
 from scipy import ndimage
 import csv
 import glob as glob
-
+from matplotlib.widgets import Slider
 class lineProfile():
 
-    def __init__(self, vmin, vmax,cut):
+    def __init__(self, vmin, vmax,cut): # vmin/vmax colourscale, cut=True enables vertical cuts
         self.vmax = vmax
         self.vmin = vmin
         self.figure = plt.figure(figsize = (5,5))
+        self.figure.subplots_adjust(bottom=0.3)
         if cut==True:
             grid = gs.GridSpec(2, 1, height_ratios=[2, 1])
             self.axMap = self.figure.add_subplot(grid[0])
@@ -23,28 +24,27 @@ class lineProfile():
             self.axCut.set_xlabel('Distance (nm)')
             self.axCut.set_ylabel('dI/dV (arb. units)')
             self.figure.canvas.mpl_connect('button_press_event', self.mapClick)
-            self.colormap = 'YlGnBu_r'
+            #self.colormap = 'YlGnBu_r'
             self.figure.show()
-        else:
-            #grid = gs.GridSpec(2, 1, height_ratios=[2, 1])
+        else: #without the cut
             self.axMap = self.figure.add_subplot(111)
-            #self.axCut = self.figure.add_subplot(grid[1])
-            #self.axCut.set_xlabel('Distance (nm)')
-            #self.axCut.set_ylabel('dI/dV (arb. units)')
-            self.figure.canvas.mpl_connect('button_press_event', self.mapClick)
-            self.colormap = 'YlGnBu_r'
+            self.axmin = self.figure.add_axes([0.25, 0.1, 0.65, 0.03])
+            self.axmax = self.figure.add_axes([0.25, 0.15, 0.65, 0.03])
+            self.smin = Slider(self.axmin, 'Min', -4, 8, valinit =0)
+            self.smax = Slider(self.axmax, 'Max', -4, 8, valinit =4)
+            #self.colormap = 'YlGnBu_r'
             self.figure.show()
 
     def draw(self):
-        self.axMap.imshow(np.fliplr(self.linescan.conductance), aspect='auto', extent=[min(self.linescan.bias), max(self.linescan.bias), min(self.linescan.distance), max(self.linescan.distance)],interpolation=None, cmap=self.colormap, vmin=self.vmin, vmax=self.vmax)
+        self.im1 = self.axMap.imshow(np.fliplr(self.linescan.conductance), aspect='auto', extent=[min(self.linescan.bias), max(self.linescan.bias), min(self.linescan.distance), max(self.linescan.distance)],interpolation=None, vmin=self.vmin, vmax=self.vmax)
+        self.smin.on_changed(self.update)
+        self.smax.on_changed(self.update)
+        #self.figure.colorbar(self.im1) #buggy colorbar
 
     def mapLoad(self,filenames):
         self.linescan = nanonis.linescan()
         self.linescan.load(filenames)
-
         self.axMap.set_title(self.linescan.name[0]+' - '+self.linescan.name[-1], fontweight='bold')
-        #self.cmin = self.linescan.conductance.min()
-        #self.cmax = self.linescan.conductance.max()
         self.cmin = self.linescan.conductance.min()
         self.cmax = self.linescan.conductance.max()
         self.axMap.set_ylabel("Distance (nm)")
@@ -90,7 +90,6 @@ class lineProfile():
         self.linescan.normalizeRange(E_range)
         self.linescan.biasOffset(offset)
         self.axMap.cla()
-        
         self.axMap.set_title(self.linescan.name[0]+' - '+self.linescan.name[-1], fontweight='bold')
         self.cmin = self.linescan.conductance.min()
         self.cmax = self.linescan.conductance.max()
@@ -126,8 +125,11 @@ class lineProfile():
             writer = csv.writer(csvfile)
             [writer.writerow(r) for r in matrix]
     
-    #def ls_offset(self,delta,stepnumber,)
-
+    #def locatePoints(self, filenames, filename):
+    def update(self, val):
+        self.im1.set_clim([self.smin.val,self.smax.val])
+        self.figure.canvas.draw()
+    
     def stepfinder(self,delta,cut,change):
         self.offset_steps_a = np.zeros(5)
         self.offset_steps_b = np.zeros(5)
@@ -161,8 +163,6 @@ class lineProfile():
                 break
             self.linescan.conductance[self.offset_steps_a[i]:self.offset_steps_b[i],:] = np.roll(self.linescan.conductance[self.offset_steps_a[i]:self.offset_steps_b[i],:], -offset_px)
             print('rolled')
-
-    #def locatePoints(self, filenames, filename):
 
 class multilineprofile():
     def LSload(self, start, end ,datestamp, path):
