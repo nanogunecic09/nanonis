@@ -10,24 +10,29 @@ from scipy import ndimage
 import csv
 import glob as glob
 from matplotlib.widgets import Slider
+import os
+import pandas as pd
+
+#added: now the linescans cuts save properly in order
+#       new class for the lineprofile cuts, given a folder with cuts it plot them
+
 class lineProfile():
 
-    def __init__(self, vmin, vmax,cut): # vmin/vmax colourscale, cut=True enables vertical cuts
+    def __init__(self, vmin=0, vmax=4,influence='off',range=0,plugins='on'): # vmin/vmax colourscale, cut=True enables vertical cuts
         self.vmax = vmax
         self.vmin = vmin
+        self.range = range
+        self.influence = influence
         self.figure = plt.figure(figsize = (5,5))
-        self.figure.subplots_adjust(bottom=0.3)
-        if cut==True:
+
+        if plugins=='on':
+            self.figure.subplots_adjust(bottom=0.3)
             grid = gs.GridSpec(2, 1, height_ratios=[2, 1])
             self.axMap = self.figure.add_subplot(grid[0])
             self.axCut = self.figure.add_subplot(grid[1])
             self.axCut.set_xlabel('Distance (nm)')
             self.axCut.set_ylabel('dI/dV (arb. units)')
             self.figure.canvas.mpl_connect('button_press_event', self.mapClick)
-            #self.colormap = 'YlGnBu_r'
-            self.figure.show()
-        else: #without the cut
-            self.axMap = self.figure.add_subplot(111)
             self.axmin = self.figure.add_axes([0.25, 0.1, 0.65, 0.03])
             self.axmax = self.figure.add_axes([0.25, 0.15, 0.65, 0.03])
             self.smin = Slider(self.axmin, 'Min', -4, 8, valinit =0)
@@ -35,22 +40,36 @@ class lineProfile():
             self.smin.on_changed(self.update)
             self.smax.on_changed(self.update)
             #self.colormap = 'YlGnBu_r'
-            self.figure.show()
+        if plugins=='off':
+            self.axMap = self.figure.add_subplot(111)
+        self.figure.show()
 
     def draw(self):
         self.im1 = self.axMap.imshow(np.fliplr(self.linescan.conductance), aspect='auto', extent=[min(self.linescan.bias), max(self.linescan.bias), min(self.linescan.distance), max(self.linescan.distance)],interpolation=None, vmin=self.vmin, vmax=self.vmax)
         #self.figure.colorbar(self.im1) #buggy colorbar
 
     def mapLoad(self,filenames):
-        self.linescan = nanonis.linescan()
-        self.linescan.load(filenames)
-        self.axMap.set_title(self.linescan.name[0]+' - '+self.linescan.name[-1], fontweight='bold')
-        self.cmin = self.linescan.conductance.min()
-        self.cmax = self.linescan.conductance.max()
-        self.axMap.set_ylabel("Distance (nm)")
-        self.axMap.set_xlabel("Bias (mV)")
-        plt.subplots_adjust(hspace=0.35)
-        self.draw()
+        if len(filenames)>1:
+            self.linescan = nanonis.linescan()
+            self.linescan.load(filenames)
+            self.axMap.set_title(self.linescan.name[0]+' - '+self.linescan.name[-1], fontweight='bold')
+            self.cmin = self.linescan.conductance.min()
+            self.cmax = self.linescan.conductance.max()
+            self.axMap.set_ylabel("Distance (nm)")
+            self.axMap.set_xlabel("Bias (mV)")
+            plt.subplots_adjust(hspace=0.35)
+            self.draw()
+        if len(filenames) == 1: #checks if we load a 3ds files instead of ascii files
+            self.linescan = nanonis.linescan3ds()
+            self.linescan.load(filenames[0])
+            self.axMap.set_title(self.linescan.name)
+            self.cmin = self.linescan.conductance.min()
+            self.cmax = self.linescan.conductance.max()
+            self.axMap.set_ylabel("Distance (nm)")
+            self.axMap.set_xlabel("Bias (mV)")
+            plt.subplots_adjust(hspace=0.35)
+            self.draw()
+
 
     def mapScale(self, min, max):
         self.cmin = min
@@ -102,35 +121,71 @@ class lineProfile():
         if event.inaxes == self.axMap:
             if event.dblclick:
                 self.spectraIndex = event.y 
+            elif self.influence == 'off':
+                self.energyCut = event.xdata
+                self.cutPlot(self.energyCut)
             else:
-                energyCut = event.xdata
-                self.cutPlot(energyCut)
-
-
+                self.energyCut = event.xdata
+                self.cutPlotRange(self.energyCut)
+    
     def cutPlot(self, energy):
         bias = np.linspace(self.linescan.bias[0],self.linescan.bias[-1], len(self.linescan.bias))
         id = (abs(bias-energy)).argmin()
-        print(id)
         self.axMap.plot([self.linescan.bias[id],self.linescan.bias[id]],[self.linescan.distance[0],self.linescan.distance[-1]])
         self.axCut.plot(self.linescan.distance, self.linescan.conductance[:,id], label=str(round(self.linescan.bias[id],2)))
         self.axCut.legend()
         self.saveCSV(self.linescan.distance, self.linescan.conductance[:,id])
         self.figure.canvas.draw_idle()
     
+    def cutPlotRange(self, energy):
+        def LSinfluence_avg(id_c,id_n,id_p): #return contuctance averaged between different cuts
+            idxs = np.arange(id_n,id_p)
+            LSconductance_avg = np.zeros(len(self.linescan.conductance))
+            if id_n == id_p: #checks that the range is >0
+                LSconductance_avg = self.linescan.conductance[:,id_c]
+            else:
+                for idx in idxs:
+                    LSconductance_avg = LSconductance_avg + self.linescan.conductance[:,idx]
+                LSconductance_avg = LSconductance_avg/len(idxs)
+            return LSconductance_avg
+        
+        bias = np.linspace(self.linescan.bias[0], self.linescan.bias[-1],len(self.linescan.bias))
+        #calculate the index based on the range given and the energy
+        id_c = (abs(bias-energy)).argmin()
+        id_n = (abs(bias-energy-self.range)).argmin()
+        id_p = (abs(bias-energy+self.range)).argmin()
+        LSinfluence_avg = LSinfluence_avg(id_c,id_n,id_p)
+        if id_n == id_p:
+            self.axMap.plot([self.linescan.bias[id_c],self.linescan.bias[id_c]],[self.linescan.distance[0],self.linescan.distance[-1]])
+        else:
+            self.axMap.fill_between([self.linescan.bias[id_n],self.linescan.bias[id_p]],self.linescan.distance[0],self.linescan.distance[-1],alpha=0.6)
+        self.axCut.plot(self.linescan.distance,LSinfluence_avg,label=str(round(self.linescan.bias[id_c],2)))
+        self.axCut.legend()
+        self.saveCSV(self.linescan.distance, LSinfluence_avg)
+        self.figure.canvas.draw_idle()
+         
     def saveCSV(self, array1,array2):
+        #for incremental save
+        stridx = self.linescan.name[0].find('LS')
+        LSidx = self.linescan.name[0][stridx:stridx+4]
+        Eidx = np.round(self.energyCut,2)
+        count = 0
+        for i in os.listdir():
+            if 'Cut{}'.format(count) in i:
+                count += 1
         matrix = np.vstack((array1,array2))
         matrix = np.transpose(matrix)
-        filename_mod = 'cut.txt'
+        filename_mod = "Cut{}_{}_{}.txt".format(count,LSidx,Eidx)
         with open(filename_mod, 'w') as csvfile:
             writer = csv.writer(csvfile)
             [writer.writerow(r) for r in matrix]
-    
-    #def locatePoints(self, filenames, filename):
-    def update(self, val):
+
+
+    def update(self, val): #for the color scale sliders
         self.im1.set_clim([self.smin.val,self.smax.val])
         self.figure.canvas.draw()
     
-    def stepfinder(self,delta,cut,change):
+    def stepfinder(self,delta,cut,change): #to correct the step caused by the rolf divider
         self.offset_steps_a = np.zeros(5)
         self.offset_steps_b = np.zeros(5)
         
@@ -152,7 +207,7 @@ class lineProfile():
             self.offset_steps_b = self.offset_steps_b.astype(int)
         return self.offset_steps_a, self.offset_steps_b 
 
-    def random_offset(self, offset, delta,cut,change):
+    def random_offset(self, offset=0, delta=0,cut=0,change=0):
         self.stepfinder(delta,cut,change)
         print(self.stepfinder(delta,cut,change))
         energy_px = self.linescan.bias[0] - self.linescan.bias[1]
@@ -220,8 +275,6 @@ class multilineprofile():
             self.axMap.set_xlabel("Bias (mV)")
         self.axis_setup()
 
-
-
 class map():
 
     def __init__(self):
@@ -272,26 +325,37 @@ class map():
         fft = abs(np.fft.fftshift(fft))
         self.axCut.imshow(fft, cmap='magma_r')
 
+class lineprofileCuts():
+    def __init__(self,directory,delimiter=None):
+        #read a path and return the filenames of the cuts
+        self.cuts_path = []
+        for i in os.listdir(directory):
+            if '.txt' in i:
+                self.cuts_path.append(i)
+        #pack the cuts in a dataframe
+        dfs = []
+        for i in self.cuts_path:
+            df = 0
+            df = pd.read_csv(directory + '/' + i,delimiter=delimiter,header=None,names=[i +'_d',i +'_I'])
+            dfs.append(df)
+        self.df = pd.concat(dfs,axis=1)
 
 
+    def plot_cuts(self,vertOff=0,xOffset=0): #plot the cuts with a vertical offset
+        self.fig, ax = plt.subplots(1)
+        count = 0
+        for i in range(len(self.df.columns)):
+            if count==len(self.df.columns):
+                break
+            ax.plot(self.df[self.df.columns[count]]+xOffset, self.df[self.df.columns[count+1]]+ count*vertOff, label=self.df.columns[count])
+            count += 2
+            xOffset=0 #only the first spectra is going to be offsetted
+        ax.set_xlabel('Distance(nm)')
+        ax.set_ylabel('dI/dV')
+        plt.legend()
+        plt.show()
+        return
+    def savefig(self,name):
+        self.fig.savefig('{}.pdf'.format(name))
 
 
-    
-
-
-
-
-
-
-
-'''
-plt.pcolormesh(lin.bias, lin.distance, conductance, vmin=0, vmax=2e-11)
-plt.title(lin.name[0]+' - '+lin.name[-1], fontweight='bold')
-plt.colorbar()
-plt.xlabel('Energy [meV]')
-plt.ylabel('Distance [nm]')
-cbar = plt.colorbar(orientation='horizontal', pad=0.02, fraction=0.0468)
-cbar.outline.set_visible(False)
-cbar.locator = ticker.MaxNLocator(nbins=2)
-cbar.update_ticks()
-cbar.set_label('dI/dV [arb. units]', labelpad=-48)'''
