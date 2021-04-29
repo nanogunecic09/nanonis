@@ -2,7 +2,7 @@
 #nanoImaging group @ nanoGune
 
 #from modules import functions
-from numpy import arange, sqrt, array, linspace, zeros, rot90, flipud, fromfile, meshgrid, arange, fliplr, gradient, mean
+from numpy import flip, arange, sqrt, array, linspace, zeros, rot90, flipud, fromfile, meshgrid, arange, fliplr, gradient, mean
 from pandas import DataFrame, read_csv
 from dateutil.parser import parse
 from scipy import interpolate
@@ -335,7 +335,6 @@ class biasSpectroscopy():
             self.z = float(self.header['Z (m)'])
 #        if self.header['Date']:
 #            self.date = parse(self.header['Date'])
-
     def biasOffset(self, offset):
         self.data['Bias calc (V)'] = self.data['Bias calc (V)']-offset
 
@@ -402,9 +401,9 @@ class linescan():
         for i in files:
             spectra.load(i)
             dummyCo.append(spectra.conductance)
-            #dummyCu.append(spectra.current)
+            dummyCu.append(spectra.current)
             dummyNa.append(spectra.name)
-            #dummyR.append(spectra.bias[0]/spectra.current[0])
+            dummyR.append(spectra.bias[0]/spectra.current[0])
         self.conductance = array(dummyCo)
         self.current = array(dummyCu)
         self.name = array(dummyNa)
@@ -452,7 +451,7 @@ class grid():
         self.type = 'Grid'
 
     def load(self, filename):
-        self.data, header, self.parameters, self.multiline, MLS = read3DS(filename)
+        self.data, self.header, self.parameters, self.multiline, MLS = read3DS(filename)
         self.filename = filename
         '''if MLS:
             multi = list(self.multiline.keys())
@@ -460,17 +459,65 @@ class grid():
             self.sweep = []
             for i in range(len(multi[1])):
                 self.sweep.extend(linspace(multi[0][i]), multi[1][i]), multi[5][i]))'''
-        if 'X Length (nm)' in header:
-            self.xrange = header['X Length (nm)']
-        if 'Y Length (nm)' in header:
-            self.yrange = header['Y Length (nm)']
-        if 'X Offset (nm)' in header:
-            self.xoffset = header['X Offset (nm)']
-        if 'Y Offset (nm)' in header:
-            self.yoffset = header['Y Offset (nm)']
-        if 'Scan Angle (deg)' in header:
-            self.scanangle = header['Scan Angle (deg)']
-            
+        if 'X Length (nm)' in self.header:
+            self.xrange = self.header['X Length (nm)']
+        if 'Y Length (nm)' in self.header:
+            self.yrange = self.header['Y Length (nm)']
+        if 'X Offset (nm)' in self.header:
+            self.xoffset = self.header['X Offset (nm)']
+        if 'Y Offset (nm)' in self.header:
+            self.yoffset = self.header['Y Offset (nm)']
+        if 'Scan Angle (deg)' in self.header:
+            self.scanangle = self.header['Scan Angle (deg)']
     #def cutFind(self, value):
     #    index = (abs(self.sweep - value)).argmin()
     #    return index
+class linescan3ds():
+
+    def __init__(self):
+        self.type = 'Linescan'
+
+    def load(self, filename):
+        self.data, self.header, self.parameters, self.multiline, MLS = read3DS(filename)
+        self.length = self.header['X Length (nm)']
+        self.distance = linspace(0,self.length,num=self.data['Input 3_DAC3_dIdV IN7 (V)'].shape[1])
+        self.bias = flip(linspace(self.parameters['Sweep Start'][0][0]*1e3,self.parameters['Sweep End'][0][0]*1e3,num=self.data['Input 3_DAC3_dIdV IN7 (V)'].shape[2]))
+        self.conductance = self.data['Input 3_DAC3_dIdV IN7 (V)'][0,:,:]
+        self.name = filename.split("/")
+
+
+    def distanceOffset(self, offset):
+        self.distance = self.distance-offset
+    
+    def biasOffset(self, offset):
+        self.bias = self.bias-offset
+
+    def positionFind(self, position):
+        index = (abs(self.distance - position)).argmin()
+        return index
+    
+    def energyFind(self, energy):
+        index = (abs(self.bias - energy)).argmin()
+        return index
+
+    def positionCut(self, position):
+        index = (abs(self.distance - position)).argmin()
+        return self.conductance[index,:]
+        
+    def energyCut(self, energy):
+        index = (abs(self.bias - energy)).argmin()
+        return self.conductance[:,index]
+
+    def normalizeTo(self, energy):
+        index = self.energyFind(energy)
+        for i in range(len(self.name)):
+            self.conductance[i][:] = self.conductance[i][:]/self.conductance[i][index]
+
+    def normalizeRange(self, E_range): #normalize data given an energy range
+        index = []
+        index.append(self.energyFind(E_range[1]))
+        index.append(self.energyFind(E_range[0]))
+        for i in range(len(self.name)):
+            conductanceCut = self.conductance[i][index[0]:index[1]]
+            avg = mean(conductanceCut)
+            self.conductance[i][:] = self.conductance[i][:]/avg
