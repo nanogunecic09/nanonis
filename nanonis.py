@@ -7,7 +7,8 @@ from pandas import DataFrame, read_csv
 from dateutil.parser import parse
 from scipy import interpolate
 import struct
-
+import colorcet as cc
+import pandas as pd
 def readDATDec(filename, datatype):
     if datatype == 'dIdV':
         names = ['Bias', 'Conductance']
@@ -32,7 +33,7 @@ def readGcutLS(didvfile,distancefile):
     with open(distancefile) as f:
         dfdata = read_csv(distancefile, sep='\t', header=None)
     distance = dfdata.loc[:,0]
-    return conductance, bias, distance
+    return conductance, bias.to_numpy(), distance.to_numpy()
 
 def readDAT(filename):
     header = dict()
@@ -198,7 +199,6 @@ def readSXM(filename):
         passoff = []
         passene = []
         passset = []
-        print(channels)
         for i in range(len(channels)):
             cha = channels[i]
             num = int(cha[cha.index('[P')+2:cha.index(']_')])
@@ -445,6 +445,76 @@ class linescan():
             conductanceCut = self.conductance[i][index[0]:index[1]]
             avg = mean(conductanceCut)
             self.conductance[i][:] = self.conductance[i][:]/avg
+            print(avg)
+    def hand_normalization(self,path_values):
+        values = pd.read_csv(path_values,header=None)
+        values = values.to_numpy()
+        for i in range(len(self.name)):
+            self.conductance[i][:] = self.conductance[i][:]/values[i]
+    
+class Zapproach():
+        def __init__(self):
+            self.type = 'Linescan'
+
+        def load(self, files):
+            spectra = biasSpectroscopy()
+            dummyCo = []
+            dummyCu = []
+            dummyNa = []
+            dummyR = []
+            dummyOff = []
+            spectra.load(files[0])
+            self.bias = flip(array(spectra.bias)*1e3)
+            for i in files:
+                spectra.load(i)
+                dummyCo.append(spectra.conductance)
+                dummyCu.append(spectra.current)
+                dummyNa.append(spectra.name)
+                dummyR.append(spectra.bias[0]/spectra.current[0])
+                dummyOff.append(float(spectra.header['Bias Spectroscopy>Z offset (m)']))
+            self.conductance = fliplr(array(dummyCo))
+            self.current = array(dummyCu)
+            self.name = array(dummyNa)
+            self.resistance = array(dummyR)
+            self.Zoff = array(dummyOff)
+
+
+        def distanceOffset(self, offset):
+            self.distance = self.distance-offset
+
+        def biasOffset(self, offset):
+            self.bias = self.bias-offset
+
+        def positionFind(self, position):
+            index = (abs(self.distance - position)).argmin()
+            return index
+
+        def energyFind(self, energy):
+            index = (abs(self.bias - energy)).argmin()
+            return index
+
+        def positionCut(self, position):
+            index = (abs(self.distance - position)).argmin()
+            return self.conductance[index,:]
+
+        def energyCut(self, energy):
+            index = (abs(self.bias - energy)).argmin()
+            return self.conductance[:,index]
+
+        def normalizeTo(self, energy):
+            index = self.energyFind(energy)
+            for i in range(len(self.name)):
+                self.conductance[i][:] = self.conductance[i][:]/self.conductance[i][index]
+
+        def normalizeRange(self, E_range): #normalize data given an energy range
+            index = []
+            index.append(self.energyFind(E_range[0]))
+            index.append(self.energyFind(E_range[1]))
+            for i in range(len(self.name)):
+                conductanceCut = self.conductance[i][index[0]:index[1]]
+                avg = mean(conductanceCut)
+                self.conductance[i][:] = self.conductance[i][:]/avg
+
 class grid():
 #Falta hacer bien el MLS
     def __init__(self):
@@ -453,6 +523,7 @@ class grid():
     def load(self, filename):
         self.data, self.header, self.parameters, self.multiline, MLS = read3DS(filename)
         self.filename = filename
+        self.bias = linspace(self.parameters['Sweep Start'][0][0],self.parameters['Sweep End'][0][0],self.header['# Points'])
         '''if MLS:
             multi = list(self.multiline.keys())
             first = False
@@ -472,6 +543,7 @@ class grid():
     #def cutFind(self, value):
     #    index = (abs(self.sweep - value)).argmin()
     #    return index
+
 class linescan3ds():
 
     def __init__(self):
