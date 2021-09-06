@@ -349,6 +349,8 @@ class biasSpectroscopy():
             self.sens = float(self.header['Ext. VI 1>7270 Sensitivity (V)' ])
         if 'Current>Gain' in self.header:
             self.gain = 10**float(self.header['Current>Gain'][-1])
+        if 'Bias>Calibration (V/V)' in self.header:
+            self.biascal = float(self.header['Bias>Calibration (V/V)'])
 #        if self.header['Date']:
 #            self.date = parse(self.header['Date'])
             
@@ -376,8 +378,8 @@ class biasSpectroscopy():
         index = self.energyFind(energy)
         self.conductance = self.conductance/self.conductance[index]
         
-    def calcdidv(self):
-        didv=self.conductance/2.5*self.sens/(2*self.modamp)/self.gain
+    def calcdidv(self,biascal):
+        didv=2*self.conductance/2.5*self.sens/(self.modamp*biascal)/self.gain #the origin of the factor 2 is unknown - perhaps rms related?
         return didv
     #def currDiff(self):
     #    currDiff = -gradient(self.current)
