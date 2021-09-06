@@ -310,12 +310,19 @@ class biasSpectroscopy():
         if 'SRX (V)' in self.data:
             self.conductance = self.data['SRX (V)']
             self.conductanceColumn = 'SRX (V)'
+        if 'SRY (V)' in self.data:
+            self.sry = self.data['SRY (V)']
         elif 'SRX [AVG] (V)' in self.data:
             self.conductance = self.data['SRX [AVG] (V)']
             self.conductanceColumn = 'SRX [AVG] (V)'
         elif 'LIX 1 omega (A)' in self.data:
             self.conductance = self.data['LIX 1 omega (A)']
             self.conductanceColumn = 'LIX 1 omega (A)'
+        if 'SRX [bwd] (V)' in self.data:
+            self.conductanceb = self.data['SRX [bwd] (V)']
+            self.conductancebColumn = 'SRX [bwd] (V)'
+        if 'SRY [bwd] (V)' in self.data:
+            self.sryb = self.data['SRY [bwd] (V)']
         if 'SRX2nd [AVG] (V)' in self.data:
             self.harmonic = self.data['SRX2nd [AVG] (V)']
         elif 'LIX 1 omega [AVG] (A)' in self.data:
@@ -327,14 +334,24 @@ class biasSpectroscopy():
         elif 'Current [AVG] (A)' in self.data:
             self.current = self.data['Current [AVG] (A)']
             self.currentColumn = 'Current [AVG] (A)'
+        if 'Current [bwd] (A)' in self.data:
+            self.currentb = self.data['Current [bwd] (A)']
+            self.currentbColumn = 'Current [bwd] (A)'
         if 'X (m)' in self.header:
             self.x = float(self.header['X (m)'])
         if 'Y (m)' in self.header:
             self.y = float(self.header['Y (m)'])
         if 'Z (m)' in self.header:
             self.z = float(self.header['Z (m)'])
+        if 'Ext. VI 1>7270 Modulation (V)' in self.header:
+            self.modamp = float(self.header['Ext. VI 1>7270 Modulation (V)'])
+        if 'Ext. VI 1>7270 Sensitivity (V)' in self.header:
+            self.sens = float(self.header['Ext. VI 1>7270 Sensitivity (V)' ])
+        if 'Current>Gain' in self.header:
+            self.gain = 10**float(self.header['Current>Gain'][-1])
 #        if self.header['Date']:
 #            self.date = parse(self.header['Date'])
+            
     def biasOffset(self, offset):
         self.data['Bias calc (V)'] = self.data['Bias calc (V)']-offset
 
@@ -358,7 +375,10 @@ class biasSpectroscopy():
     def normalizeTo(self, energy):
         index = self.energyFind(energy)
         self.conductance = self.conductance/self.conductance[index]
-
+        
+    def calcdidv(self):
+        didv=self.conductance/2.5*self.sens/(2*self.modamp)/self.gain
+        return didv
     #def currDiff(self):
     #    currDiff = -gradient(self.current)
     #    return corrConductance
