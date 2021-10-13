@@ -696,6 +696,7 @@ class grid():
                 axin1 = inset_axes(self.axMap, width='100%', height='15%', loc='upper left',bbox_to_anchor=(-0.04,0.04,0.995,1), bbox_transform=self.axMap.transAxes)
             else:
                 axin1 = inset_axes(self.axMap, width='100%', height='15%', loc='upper left',bbox_to_anchor=(-0.04,0.04,1,1), bbox_transform=self.axMap.transAxes)
+                
             axin1.get_xaxis().set_visible(False)
             axin1.get_yaxis().set_visible(False)
             axin1.tick_params(axis='both',which='both',length=0)
@@ -708,6 +709,7 @@ class grid():
             self.axMap.text(0,0.03,labels[count],color='w',size=14,weight='bold',transform = self.axMap.transAxes)
             self.axMap.text(0.98,0.03,str(np.round(self.gridraw.bias[self.cutIdx]*1e3,2))+'mV',color='w',size=12,weight='bold',transform = self.axMap.transAxes,ha='right')
             count += 1
+
     def update_energy(self,val):
         self.cutIdx = (abs(self.gridraw.bias-val*1e-3)).argmin()
         self.conductance = np.flipud(self.gridraw.data['SRX (V)'][:,:,self.cutIdx])

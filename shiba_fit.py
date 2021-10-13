@@ -1,7 +1,7 @@
-from modules import detect_peaks as dp
-from modules import nanonis
+import detect_peaks as dp
+import nanonis
 #from modules import functions
-from modules import distributions
+import distributions
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
