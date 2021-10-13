@@ -1,5 +1,5 @@
-
-from modules import nanonis
+from pandas.core.reshape.tile import cut
+import nanonis
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gs
 from matplotlib import rc, ticker
@@ -12,19 +12,35 @@ import glob as glob
 from matplotlib.widgets import Slider
 import os
 import pandas as pd
+import colorcet as cc
+from lmfit import Model
+
+
 
 #added: now the linescans cuts save properly in order
 #       new class for the lineprofile cuts, given a folder with cuts it plot them
+#       new class for plotting general image with sliders
+
+
+#lineProfile() is a class dependent on nanonis.linescan(). Adds the graphing features:
+# if the plugins are on: sliders for vmax vmin, vertical cut with or without the influence radius
+# cutmode different than line allows to click and retrieve the point number saved in self.points
+# flipud='on' flips the map up-down
+# noline='on' is for loading datasets that are not linescans but we still want to plot them with imshow.
 
 class lineProfile():
 
-    def __init__(self, vmin=0, vmax=4,influence='off',range=0,plugins='on'): # vmin/vmax colourscale, cut=True enables vertical cuts
+    def __init__(self, vmin=0, vmax=4,influence='off',range=0,plugins='on',cutMode='line',flipud='off',noline='off',LStype='normal'): # vmin/vmax colourscale, cut=True enables vertical cuts
+        self.cutMode = cutMode
+        self.LStype = LStype
         self.vmax = vmax
         self.vmin = vmin
         self.range = range
+        self.colormap = 'YlGnBu_r'
         self.influence = influence
-        self.figure = plt.figure(figsize = (5,5))
-
+        self.flipud= flipud
+        self.noline = noline
+        self.figure = plt.figure(figsize = (5,3))
         if plugins=='on':
             self.figure.subplots_adjust(bottom=0.3)
             grid = gs.GridSpec(2, 1, height_ratios=[2, 1])
@@ -39,17 +55,20 @@ class lineProfile():
             self.smax = Slider(self.axmax, 'Max', -4, 8, valinit =4)
             self.smin.on_changed(self.update)
             self.smax.on_changed(self.update)
-            #self.colormap = 'YlGnBu_r'
         if plugins=='off':
             self.axMap = self.figure.add_subplot(111)
         self.figure.show()
 
     def draw(self):
-        self.im1 = self.axMap.imshow(np.fliplr(self.linescan.conductance), aspect='auto', extent=[min(self.linescan.bias), max(self.linescan.bias), min(self.linescan.distance), max(self.linescan.distance)],interpolation=None, vmin=self.vmin, vmax=self.vmax)
-        #self.figure.colorbar(self.im1) #buggy colorbar
+        if self.flipud=='on':
+            self.im1 = self.axMap.imshow(np.flipud(np.fliplr(self.linescan.conductance)), aspect='auto', extent=self.extent,cmap = self.colormap, interpolation='nearest', vmin=self.vmin, vmax=self.vmax)
+        elif self.noline == 'on':
+            self.im1 = self.axMap.imshow(np.fliplr(self.linescan.conductance), aspect='auto',cmap = self.colormap, interpolation='nearest', vmin=self.vmin, vmax=self.vmax)
+        else:
+            self.im1 = self.axMap.imshow(np.fliplr(self.linescan.conductance), aspect='auto', extent=self.extent,cmap = self.colormap, interpolation='nearest', vmin=self.vmin, vmax=self.vmax)
 
-    def mapLoad(self,filenames):
-        if len(filenames)>1:
+    def mapLoad(self,filenames,distance=None): # distance is the path of the distance file for wsxm LS type
+        if self.LStype == 'normal': #for linescans recorded in series of .dat files
             self.linescan = nanonis.linescan()
             self.linescan.load(filenames)
             self.axMap.set_title(self.linescan.name[0]+' - '+self.linescan.name[-1], fontweight='bold')
@@ -58,8 +77,9 @@ class lineProfile():
             self.axMap.set_ylabel("Distance (nm)")
             self.axMap.set_xlabel("Bias (mV)")
             plt.subplots_adjust(hspace=0.35)
+            self.extent = [min(self.linescan.bias*1e3), max(self.linescan.bias*1e3), min(self.linescan.distance), max(self.linescan.distance)]
             self.draw()
-        if len(filenames) == 1: #checks if we load a 3ds files instead of ascii files
+        if self.LStype == '3ds' == 1: #checks if we load a 3ds files instead of ascii files
             self.linescan = nanonis.linescan3ds()
             self.linescan.load(filenames[0])
             self.axMap.set_title(self.linescan.name)
@@ -68,9 +88,28 @@ class lineProfile():
             self.axMap.set_ylabel("Distance (nm)")
             self.axMap.set_xlabel("Bias (mV)")
             plt.subplots_adjust(hspace=0.35)
+            self.extent = [min(self.linescan.bias*1e3), max(self.linescan.bias*1e3), min(self.linescan.distance), max(self.linescan.distance)]
+            self.draw()
+        if self.LStype == 'wsxm': #for linescans extracted from wsxm, need a distance file path
+            self.linescan = nanonis.linescan()
+            self.linescan.conductance,self.linescan.bias,self.linescan.distance = nanonis.readGcutLS(filenames,distance)
+            self.linescan.name = filenames
+            self.axMap.set_title(filenames)
+            self.cmin = self.linescan.conductance.min()
+            self.cmax = self.linescan.conductance.max()
+            self.axMap.set_ylabel("Distance (nm)")
+            self.axMap.set_xlabel("Bias (mV)")
+            plt.subplots_adjust(hspace=0.35)
+            self.extent = [min(self.linescan.bias), max(self.linescan.bias), min(self.linescan.distance), max(self.linescan.distance)]
             self.draw()
 
-
+    def mapCut(self,range=[-2e-3,2e-3]):
+        idxs = [abs(self.linescan.bias-range[0]).argmin(),abs(self.linescan.bias-range[1]).argmin()]
+        print(idxs)
+        self.linescan.conductance = self.linescan.conductance[:,idxs[-1]:idxs[0]]
+        self.linescan.bias = self.linescan.bias[idxs[-1]:idxs[0]]
+        self.extent = [min(self.linescan.bias*1e3), max(self.linescan.bias*1e3), min(self.linescan.distance), max(self.linescan.distance)]
+  
     def mapScale(self, min, max):
         self.cmin = min
         self.cmax = max
@@ -118,21 +157,45 @@ class lineProfile():
         self.draw()
 
     def mapClick(self,event):
-        if event.inaxes == self.axMap:
-            if event.dblclick:
-                self.spectraIndex = event.y 
-            elif self.influence == 'off':
-                self.energyCut = event.xdata
-                self.cutPlot(self.energyCut)
-            else:
-                self.energyCut = event.xdata
-                self.cutPlotRange(self.energyCut)
+        if self.cutMode == 'point':
+            if event.inaxes == self.axMap:
+                if event.dblclick: #cancel the last tracked point
+                    self.YSRtrace[0] = self.YSRtrace[0][:-2]
+                    self.YSRtrace[1] = self.YSRtrace[1][:-2] 
+                elif self.influence == 'off':
+                    self.energyCut = event.xdata
+                    self.distCut = event.ydata
+                    self.points = [[],[]]
+                    self.cutSave(self.energyCut,self.distCut)
+                else:
+                    self.energyCut = event.xdata
+                    self.distCut = event.ydata
+                    self.cutPlotRange(self.energyCut,self.distCut)
+        elif self.cutMode == 'line':
+            if event.inaxes == self.axMap:
+                if event.dblclick:
+                    self.spectraIndex = event.y 
+                elif self.influence == 'off':
+                    self.energyCut = event.xdata
+                    self.cutPlot(self.energyCut*1e-3)
+                else:
+                    self.energyCut = event.xdata
+                    self.cutPlotRange(self.energyCut*1e-3)            
     
+    def cutSave(self,energy,distCut): #save the point clicked on the plot and put a dot in the graph
+        bias = np.linspace(self.linescan.bias[0],self.linescan.bias[-1], len(self.linescan.bias))
+        id = (abs(bias-energy)).argmin()
+        id_d = (abs(self.linescan.distance-distCut)).argmin()
+        self.axMap.scatter(self.linescan.bias[id],self.linescan.distance[id_d])
+        self.points[0].append(self.linescan.distance[id_d])
+        self.points[1].append(self.linescan.bias[id])
+        self.figure.canvas.draw_idle()
+
     def cutPlot(self, energy):
         bias = np.linspace(self.linescan.bias[0],self.linescan.bias[-1], len(self.linescan.bias))
         id = (abs(bias-energy)).argmin()
-        self.axMap.plot([self.linescan.bias[id],self.linescan.bias[id]],[self.linescan.distance[0],self.linescan.distance[-1]])
-        self.axCut.plot(self.linescan.distance, self.linescan.conductance[:,id], label=str(round(self.linescan.bias[id],2)))
+        self.axMap.plot([self.linescan.bias[id]*1e3,self.linescan.bias[id]*1e3],[self.linescan.distance[0],self.linescan.distance[-1]])
+        self.axCut.plot(self.linescan.distance, self.linescan.conductance[:,id], label=str(round(self.linescan.bias[id]*1e3,2)))
         self.axCut.legend()
         self.saveCSV(self.linescan.distance, self.linescan.conductance[:,id])
         self.figure.canvas.draw_idle()
@@ -154,14 +217,14 @@ class lineProfile():
         id_c = (abs(bias-energy)).argmin()
         id_n = (abs(bias-energy-self.range)).argmin()
         id_p = (abs(bias-energy+self.range)).argmin()
-        LSinfluence_avg = LSinfluence_avg(id_c,id_n,id_p)
+        self.conductance_avg = LSinfluence_avg(id_c,id_n,id_p)
         if id_n == id_p:
-            self.axMap.plot([self.linescan.bias[id_c],self.linescan.bias[id_c]],[self.linescan.distance[0],self.linescan.distance[-1]])
+            self.axMap.plot([self.linescan.bias[id_c]*1e3,self.linescan.bias[id_c]*1e3],[self.linescan.distance[0],self.linescan.distance[-1]])
         else:
-            self.axMap.fill_between([self.linescan.bias[id_n],self.linescan.bias[id_p]],self.linescan.distance[0],self.linescan.distance[-1],alpha=0.6)
-        self.axCut.plot(self.linescan.distance,LSinfluence_avg,label=str(round(self.linescan.bias[id_c],2)))
+            self.axMap.fill_between([self.linescan.bias[id_n]*1e3,self.linescan.bias[id_p]*1e3],self.linescan.distance[0],self.linescan.distance[-1],alpha=0.6)
+        self.axCut.plot(self.linescan.distance,self.conductance_avg,label=str(round(self.linescan.bias[id_c]*1e3,3)))
         self.axCut.legend()
-        self.saveCSV(self.linescan.distance, LSinfluence_avg)
+        self.saveCSV(self.linescan.distance, self.conductance_avg)
         self.figure.canvas.draw_idle()
          
     def saveCSV(self, array1,array2):
@@ -184,6 +247,7 @@ class lineProfile():
     def update(self, val): #for the color scale sliders
         self.im1.set_clim([self.smin.val,self.smax.val])
         self.figure.canvas.draw()
+
     
     def stepfinder(self,delta,cut,change): #to correct the step caused by the rolf divider
         self.offset_steps_a = np.zeros(5)
@@ -218,6 +282,26 @@ class lineProfile():
                 break
             self.linescan.conductance[self.offset_steps_a[i]:self.offset_steps_b[i],:] = np.roll(self.linescan.conductance[self.offset_steps_a[i]:self.offset_steps_b[i],:], -offset_px)
             print('rolled')
+
+    def hand_normalization(self,path_values,offset):
+        values = pd.read_csv(path_values,header=None)
+        values = values.to_numpy()
+        for i in range(len(self.linescan.name)):
+            self.linescan.conductance[i][:] = self.linescan.conductance[i][:]/values[i]
+        self.linescan.biasOffset(offset)
+        self.axMap.cla()
+        self.axMap.set_title(self.linescan.name[0]+' - '+self.linescan.name[-1], fontweight='bold')
+        self.cmin = self.linescan.conductance.min()
+        self.cmax = self.linescan.conductance.max()
+        self.axMap.set_ylabel("Distance (nm)")
+        self.axMap.set_xlabel("Bias (mV)")
+        plt.subplots_adjust(hspace=0.35)
+        self.draw()
+
+    def deconvolution(self,gap=1.37e-3, temperature=1.3, dynesParameter=40e-6, energyR=8e-3, spacing=35e-6,x_min=-4E-3,x_max=4E-3,N=300, window=15,order=2,n=2000):
+        self.linescan.deconvolution(gap, temperature, dynesParameter, energyR, spacing,x_min,x_max,N, window,order,n)
+        self.linescan.bias = np.flip(self.linescan.bias_dec) # bias flip cause in graphix the standard is from positive to negative
+        self.linescan.conductance = self.linescan.conductance_dec
 
 class multilineprofile():
     def LSload(self, start, end ,datestamp, path):
@@ -297,13 +381,13 @@ class map():
             channs = list(file.data.keys())
             if channel in channs[j]:
                 self.map = file.data[channs[j]]
-                if processing is 'firstPoint':
+                if processing == 'firstPoint':
                     for i in range(self.map.shape[1]):
                         self.map[i][:] = self.map[i][:]-self.map[i][0]
-                if processing is 'points':
+                if processing == 'points':
                     for i in range(self.map.shape[1]):
                         self.map[i][:] = self.map[i][:]-np.average(self.map[i][:20])
-                if processing is 'average':
+                if processing == 'average':
                     for i in range(self.map.shape[1]):
                         self.map[i][:] = self.map[i][:]-np.average(self.map[i][:])
                 self.map = ndimage.gaussian_filter(self.map, gaussian)
@@ -358,4 +442,304 @@ class lineprofileCuts():
     def savefig(self,name):
         self.fig.savefig('{}.pdf'.format(name))
 
+class LScut():
+    def __init__(self,side='positive',center=15,ylim=None):
+        self.side = side
+        self.center = center
+        self.ylim = ylim
 
+    def load(self,filename,signal):#load the data
+        self.rawdata = pd.read_csv(filename,delimiter=',',header=0)
+        self.data = pd.DataFrame()
+        self.data[0] = self.rawdata['d']
+        self.data[1] = self.rawdata[signal]
+        self.shiftToZero()
+        self.centerToZero()
+        #define new r for plotting the fit
+        self.x = np.linspace(self.data[0].iloc[0],self.data[0].iloc[-1],1000)
+        if self.side == 'positive': #to avoid root of negative number
+            self.x = self.x[500:]
+        elif self.side == 'negative':
+            self.x = self.x[:500]
+
+    def plot1side(self):
+        self.fig,self.ax = plt.subplots(1)
+        self.ax.clear()
+        self.ax.plot(self.data[0],self.data[1])
+        self.ax.set_xlabel('Distance (nm)')
+        self.ax.set_ylabel('dI/dV (mV)')
+        self.ax.set_ylim(-0.2,max(self.data[1]))
+        if self.side == 'positive':
+            self.ax.set_xlim(0,15)
+        elif self.side == 'negative':
+            self.ax.set_xlim(-15,0)
+        
+        #sliders 1st oscillation
+        self.fig.subplots_adjust(bottom=0.5)
+        self.i = 0
+        self.t = 0.7
+        self.c1 = 23
+        self.p1 = 1.5
+        self.A1 = 10
+        self.k1 = 1.046
+        self.axi = plt.axes([0.15, 0.07, 0.65, 0.03])
+        self.axc1 = plt.axes([0.15, 0.1, 0.65, 0.03])
+        self.axp1 = plt.axes([0.15, 0.13, 0.65, 0.03])
+        self.axA1 = plt.axes([0.15, 0.16, 0.65, 0.03])
+        self.axk1 = plt.axes([0.15, 0.19, 0.65, 0.03])
+        self.axt = plt.axes([0.15, 0.22, 0.65, 0.03])
+        self.is1 = Slider(self.axi, 'i',  0, 30, valinit = 0)
+        self.cs1 = Slider(self.axc1, 'c1',  0, 30, valinit = 23)
+        self.ps1 = Slider(self.axp1, 'p1', 0, 10, valinit = 1.5)
+        self.As1 = Slider(self.axA1, 'A1', 0, 20, valinit = 10)
+        self.ks1 = Slider(self.axk1, 'k1', 0.5, 10, valinit = 1.046)
+        self.ts = Slider(self.axt,'t', 0, 3, valinit = 0.7)
+        self.is1.on_changed(self.update)
+        self.cs1.on_changed(self.update)
+        self.ps1.on_changed(self.update)
+        self.As1.on_changed(self.update)
+        self.ks1.on_changed(self.update)
+        self.ts.on_changed(self.update)
+        #sliders 2nd oscillation
+        self.c2 = 23
+        self.p2 = 1.5
+        self.A2 = 10
+        self.k2 = 4.48
+        self.axc2 = plt.axes([0.15, 0.25, 0.65, 0.03])
+        self.axp2 = plt.axes([0.15, 0.28, 0.65, 0.03])
+        self.axA2 = plt.axes([0.15, 0.31, 0.65, 0.03])
+        self.axk2 = plt.axes([0.15, 0.34, 0.65, 0.03])
+        self.cs2 = Slider(self.axc2, 'c2',  0, 30, valinit =23)
+        self.ps2 = Slider(self.axp2, 'p2', 0, 10, valinit =1.5)
+        self.As2 = Slider(self.axA2, 'A2', 0, 100, valinit =10)
+        self.ks2 = Slider(self.axk2, 'k2', 1, 15, valinit =4.48)
+        self.cs2.on_changed(self.update)
+        self.ps2.on_changed(self.update)
+        self.As2.on_changed(self.update)
+        self.ks2.on_changed(self.update)
+        #do the plotting of the fitting functions
+        if self.side == 'positive':
+            y = self.oscFuncpos1(self.x,self.A1,self.A2,self.k1,self.k2,self.p1,self.p2,self.c1,self.c2,self.t,self.i)
+            self.ax.plot(self.x,y)
+        elif self.side == 'negative':
+            y = self.oscFuncneg1(self.x,self.A1,self.A2,self.k1,self.k2,self.p1,self.p2,self.c1,self.c2,self.t,self.i)
+            self.ax.plot(self.x,y)
+    
+    def plotFull(self):
+        self.fig,self.ax = plt.subplots(1)
+        self.ax.plot(self.data[0],self.data[1])
+        self.ax.set_xlabel('Distance (nm)')
+        self.ax.set_ylabel('dI/dV')
+
+
+    def draw1D(self): #
+        self.ax.clear()
+        self.ax.plot(self.data[0],self.data[1])
+        self.ax.set_xlabel('Distance (nm)')
+        self.ax.set_ylabel('dI/dV (mV)')
+        self.ax.set_ylim(-0.2,self.ylim)
+        if self.side == 'positive':
+            self.ax.set_xlim(0,15)
+        elif self.side == 'negative':
+            self.ax.set_xlim(-15,0)
+
+    def shiftToZero(self):
+        min = np.min(self.data[1])
+        self.data[1] = self.data[1]-min
+
+    def centerToZero(self):
+        self.data[0] = self.data[0]-self.center
+
+    def maskcenter(self,cutOff):
+        p_idx = abs(self.data[0]-cutOff).argmin()
+        n_idx = abs(self.data[0]+cutOff).argmin()
+
+        for i in self.data[0]:
+            if np.abs(i) < cutOff:
+                self.data.iloc[n_idx:p_idx,1] = np.mean(self.data[1])
+
+    def oscFuncpos1(self,x,A1,A2,k1,k2,p1,p2,c1,c2,t,i):
+        oscFunc1 = (A1*(np.sin(k1*x-p1))*np.exp(-x/c1))/(np.power(x,t)*k1)
+        oscFunc2 = (A2*(np.sin(k2*x-p2))*np.exp(-x/c2))/(np.power(x,t)*k2)
+        return oscFunc1**2 + oscFunc2**2 + i*oscFunc1*oscFunc2
+    
+    def oscFuncneg1(self,x,A1,A2,k1,k2,p1,p2,c1,c2,t,i):
+        oscFunc1 = (A1*(np.sin(-k1*x-p1))*np.exp(x/c1))/(np.power(-x,t)*k1)
+        oscFunc2 = (A2*(np.sin(-k2*x-p2))*np.exp(x/c2))/(np.power(-x,t)*k2)
+        return oscFunc1**2 + oscFunc2**2 + i*oscFunc1*oscFunc2
+
+
+    def update(self, val): #for the color scale sliders
+        self.c1 = self.cs1.val
+        self.p1 = self.ps1.val
+        self.A1 = self.As1.val
+        self.k1 = self.ks1.val
+        self.c2 = self.cs2.val
+        self.p2 = self.ps2.val
+        self.A2 = self.As2.val
+        self.k2 = self.ks2.val
+        self.t = self.ts.val
+        self.i = self.is1.val
+        self.draw1D()
+        if self.side == 'positive':
+            y = self.oscFuncpos1(self.x,self.A1,self.A2,self.k1,self.k2,self.p1,self.p2,self.c1,self.c2,self.t,self.i)
+            self.ax.plot(self.x,y)
+        elif self.side == 'negative':
+            y = self.oscFuncneg1(self.x,self.A1,self.A2,self.k1,self.k2,self.p1,self.p2,self.c1,self.c2,self.t,self.i)
+            self.ax.plot(self.x,y)
+
+    def cutData(self,distCut):
+        if self.side == 'positive':
+            idx = abs(self.data[0]-distCut).argmin()
+            self.cuttedData = self.data.iloc[idx:,:]
+        if self.side == 'negative':
+            idx = abs(self.data[0]-distCut).argmin()
+            self.cuttedData = self.data.iloc[:idx,:]
+        return
+
+    def autoFit(self):
+        if self.side == 'positive':
+            model = Model(self.oscFuncpos1)
+            params = model.make_params()
+            params['A1'].set(self.A1,vary=True)
+            params['A2'].set(self.A2,vary=True)
+            params['k1'].set(self.k1,vary=False)
+            params['k2'].set(self.k2,vary=True)
+            params['c1'].set(self.c1,vary=False)
+            params['c2'].set(self.c2,vary=False)
+            params['p1'].set(self.p1,vary=True)
+            params['p2'].set(self.p2,vary=True)
+            params['t'].set( self.t ,vary=False)
+            params['i'].set( self.i ,vary=False)
+        if self.side == 'negative':
+            model = Model(self.oscFuncneg1)
+            params = model.make_params()
+            params['A1'].set(self.A1,vary=True)
+            params['A2'].set(self.A2,vary=True)
+            params['k1'].set(self.k1,vary=False)
+            params['k2'].set(self.k2,vary=True)
+            params['c1'].set(self.c1,vary=False)
+            params['c2'].set(self.c2,vary=False)
+            params['p1'].set(self.p1,vary=True)
+            params['p2'].set(self.p2,vary=True)
+            params['t'].set( self.t ,vary=False)
+            params['i'].set( self.i ,vary=True)
+        self.fitResult = model.fit(self.cuttedData[1],x=self.cuttedData[0],params=params)
+
+        return 
+
+    def plotfitResults(self):
+        plt.figure()
+        plt.plot(self.cuttedData[0],self.cuttedData[1])
+        xp = np.linspace(self.cuttedData.iloc[0,0],self.cuttedData.iloc[-1,0],1000)
+        comps = self.fitResult.eval(x=xp)
+        plt.plot(xp,comps)
+
+class grid():
+
+    def __init__(self):
+        pass
+    def mapload(self,filename,cmap):
+        self.cmap = cmap
+        self.gridraw = nanonis.grid()
+        self.gridraw.load(filename)
+    
+    def explorer(self):
+        self.figure = plt.figure(figsize=(6,6))
+        self.axMap = self.figure.add_subplot(1,1,1)
+        self.figure.subplots_adjust(bottom=0.3)
+        self.ax1 = self.figure.add_axes([0.20, 0.10, 0.65, 0.03])
+        self.ax2 = self.figure.add_axes([0.20, 0.15, 0.65, 0.03])
+        self.ax3 = self.figure.add_axes([0.20, 0.20, 0.65, 0.03])
+        self.energyCut_slider = Slider(self.ax1,'Energy cut',self.gridraw.bias[-1]*1e3,self.gridraw.bias[0]*1e3,valinit=0, valstep=(self.gridraw.bias[0]-self.gridraw.bias[1])*1e3)
+        self.smin_slider = Slider(self.ax2, 'Min', -4, 8, valinit =0)
+        self.smax_slider = Slider(self.ax3, 'Max', -4, 8, valinit =4)
+        self.conductance = np.flipud(self.gridraw.data['SRX (V)'][:,:,0])
+        self.energyCut_slider.on_changed(self.update_energy)
+        self.smin_slider.on_changed(self.update_cscale)
+        self.smax_slider.on_changed(self.update_cscale)
+        self.im1 = self.axMap.imshow(self.conductance,extent=[0,self.gridraw.xrange,0,self.gridraw.yrange],interpolation=None,cmap=self.cmap)
+
+    def multicut(self,energies,vmins=None,vmaxs=None): #plot multiple grid cuts given the energies
+        gsize = np.int(np.sqrt(len(energies)))
+        grid = gs.GridSpec(gsize+1,gsize+1,wspace=0.3)
+        self.figure = plt.figure(figsize = (10,10))
+        count = 0
+        for energy in energies:
+            self.cutIdx = (abs(self.gridraw.bias-energy*1e-3)).argmin()
+            self.conductance = np.flipud(self.gridraw.data['SRX (V)'][:,:,self.cutIdx])
+            self.axMap = self.figure.add_subplot(grid[count])
+            if vmaxs == None:
+                self.im1 = self.axMap.imshow(self.conductance,extent=[0,self.gridraw.xrange,0,self.gridraw.yrange],interpolation=None,cmap=self.cmap,vmin=0,vmax=None)
+            else:
+                self.im1 = self.axMap.imshow(self.conductance,extent=[0,self.gridraw.xrange,0,self.gridraw.yrange],interpolation=None,cmap=self.cmap,vmin=0,vmax=vmaxs[count])
+            count += 1
+
+    def multicutFeTPP(self,energies,labels,vmins=None,vmaxs=None): #plot multiple grid cuts given the energies
+        gsize = np.int(np.sqrt(len(energies)))
+        grid = gs.GridSpec(gsize+1,gsize+1,wspace=0)
+        self.figure = plt.figure(figsize = (10,10))
+        count = 0
+        for energy in energies:
+            self.cutIdx = (abs(self.gridraw.bias-energy*1e-3)).argmin()
+            self.conductance = np.flipud(self.gridraw.data['SRX (V)'][:-4,4:,self.cutIdx])
+            self.axMap = self.figure.add_subplot(grid[count])
+            if vmaxs == None:
+                self.im1 = self.axMap.imshow(self.conductance,extent=[0,3,0,3],interpolation=None,cmap=self.cmap,vmin=0,vmax=None)
+            else:
+                self.im1 = self.axMap.imshow(self.conductance,extent=None,interpolation=None,cmap=self.cmap,vmin=0,vmax=vmaxs[count])
+
+            self.axMap.get_xaxis().set_visible(False)
+            self.axMap.get_yaxis().set_visible(False)
+            #colorbar
+            if count == 1 or count == 5 or count == 9:
+                axin1 = inset_axes(self.axMap, width='100%', height='15%', loc='upper left',bbox_to_anchor=(-0.04,0.04,0.995,1), bbox_transform=self.axMap.transAxes)
+            else:
+                axin1 = inset_axes(self.axMap, width='100%', height='15%', loc='upper left',bbox_to_anchor=(-0.04,0.04,1,1), bbox_transform=self.axMap.transAxes)
+            axin1.get_xaxis().set_visible(False)
+            axin1.get_yaxis().set_visible(False)
+            axin1.tick_params(axis='both',which='both',length=0)
+            self.figure.colorbar(self.im1,cax=axin1,orientation='horizontal')
+            #cbar label
+            axin1.text(0.05,0.40,str(np.int(self.im1.get_clim()[0])),size=12,color='w',transform = axin1.transAxes,ha='center',va="center",weight='bold')
+            axin1.text(0.90,0.40,str(np.round(self.im1.get_clim()[1],1)),size=12,color='k',transform = axin1.transAxes,ha='center',va="center",weight='bold')
+            axin1.text(0.90,0.40,'',size=12,color='k',transform = axin1.transAxes,ha='center',va="center",weight='bold')
+            # label text
+            self.axMap.text(0,0.03,labels[count],color='w',size=14,weight='bold',transform = self.axMap.transAxes)
+            self.axMap.text(0.98,0.03,str(np.round(self.gridraw.bias[self.cutIdx]*1e3,2))+'mV',color='w',size=12,weight='bold',transform = self.axMap.transAxes,ha='right')
+            count += 1
+    def update_energy(self,val):
+        self.cutIdx = (abs(self.gridraw.bias-val*1e-3)).argmin()
+        self.conductance = np.flipud(self.gridraw.data['SRX (V)'][:,:,self.cutIdx])
+        self.im1.set_data(self.conductance)
+        self.figure.canvas.draw()
+
+    def update_cscale(self,val):
+        self.im1.set_clim([self.smin_slider.val,self.smax_slider.val])
+        self.figure.canvas.draw()
+
+class ZapproachMilano():
+
+    def __init__(self):
+        pass
+    def load(self,filenames):
+        self.Zapproach = nanonis.Zapproach()
+        self.Zapproach.load(filenames)
+    
+    def mapPlot(self):
+        fig,ax = plt.subplots(1)
+        ax.imshow(self.Zapproach.conductance,extent=[self.Zapproach.bias[-1],self.Zapproach.bias[0],0,1],aspect='auto',interpolation='nearest')
+        ax.set_xlabel('Bias (mV)')
+
+##useful plotting tools
+
+#set the current axes in spectroscopy mode
+
+def set_labels_didv(axs):
+    if type(axs) == type(np.zeros(2)):
+        for ax in axs:
+            ax.set_xlabel('Bias (mV)')
+            ax.set_ylabel('dI/dV (arb. units)')
+    else:
+        axs.set_xlabel('Bias (mV)')
+        axs.set_ylabel('dI/dV (arb. units)')
