@@ -798,3 +798,5 @@ class fitspec(Green):
             (self.fdd(self.En,0,T)-self.fdd(self.En+V,0,T)), x=self.En)
             curr.append(currp)
         return -A*np.gradient(np.array(curr))
+
+print('hello world')
