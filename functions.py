@@ -85,5 +85,3 @@ def rotatePoint(point, angle):
 	y = point[0]*np.sin(np.deg2rad(angle))+point[1]*np.cos(np.deg2rad(angle))
 	newPoint = [x,y]
 	return  newPoint
-
-def voig
