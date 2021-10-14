@@ -703,8 +703,8 @@ class fitspec(Green):
         ##### PARAMETERS INITIALIZATION #####
         self.Eh = const.physical_constants['atomic unit of energy'][0]
         self.deltas = 2.87e-5
-        self.deltat = 2.36e-05
-        self.En = np.linspace(-16*self.deltas,16*self.deltas,Epx)
+        self.deltat = 2.36e-5
+        self.En = np.linspace(-8*self.deltas,8*self.deltas,Epx)
         self.Vn = np.linspace(-4*self.deltas,4*self.deltas,Epx)
         self.T = T
         if dimer == '100':
@@ -724,7 +724,7 @@ class fitspec(Green):
             self.J1 = -0.0236
             self.J2 = 0
         elif mode == 'BCS':
-            self.J1 = -0.0296
+            self.J1 = 0
             self.J2 = 0
 
     def load(self,filename,offset=0):
@@ -735,56 +735,59 @@ class fitspec(Green):
         #convert to atomic units
         self.spectra.bias = self.spectra.bias*const.e/self.Eh
         #the new Vn is the bias of the experimental conductance
-        self.Vn = self.spectra.bias
+        # self.Vn = self.spectra.bias
 
-    def dynesdos(self, E, Gamma): #dynes function
-        dos = np.real((E-1j*Gamma)/np.sqrt((E-1j*Gamma)**2-self.deltat**2))
-        return np.abs(dos)    
+    def dynesdos(self, E,Gammat): #dynes function
+        dos = np.real((E-1j*Gammat)/np.sqrt((E-1j*Gammat)**2-self.deltat**2))
+        return np.abs(dos)
 
     def fdd(self, E,mu, T): #fermi Dirac function
         if T == 0:
-            f = np.heaviside(-(E-mu), 1)
+            f = np.heaviside(+(E-mu), 1)
         else:
-            f = 1/(1+np.exp((-E+mu)/(const.k*T/self.Eh)))
+            f = 1/(1+np.exp((+(E-mu))/(const.k*T/self.Eh)))
         return f
 
-    def YSRdos(self,Gamma,alpha,m=20.956,pf=0.274,c=1):
+    def YSRdos(self,Gammas,alpha,m=20.956,pf=0.274,c=1):
         ww = []
         for V in self.En*c:
-            self.dG(0,0,V+np.complex(0,Gamma),self.x1,self.x2,self.J1,self.J2,alpha,self.deltas,m,pf,1)
+            self.dG(0,0,V+np.complex(0,Gammas),self.x1,self.x2,self.J1,self.J2,alpha,self.deltas,m,pf,1)
             a=self.deltaG
-            self.G(0,0,V+np.complex(0,Gamma),self.deltas,m,pf,1)
+            self.G(0,0,V+np.complex(0,Gammas),self.deltas,m,pf,1)
             b=self.G0
             ww.append(-np.imag(a[0][0]+a[1][1]+a[2][2]+a[3][3]+b[0][0]+b[1][1]+b[2][2]+b[3][3]))
         return ww
 
     #convolution with toepliz matrix (Fast)
-    def dynesConvT(self,bias,Gamma,alpha):
+    def dynesConvT(self,bias,Gammas,Gammat,alpha,norm):
         #store the parameters as fit start
-        self.Gamma = Gamma
+        self.Gammas = Gammas
+        self.Gammat = Gammat
         self.alpha = alpha
+        self.norm = norm
 
         A,B = np.meshgrid(self.Vn,self.En)
         toep = A+B
         #generate linear dos
-        sample = self.YSRdos(Gamma,alpha)
-        fermi = self.fdd(self.En,0,self.T)
+        self.sample = self.YSRdos(Gammas,alpha)
+        self.fermi = self.fdd(self.En,0,self.T)
         # generate toepliz 
-        tipT = self.dynesdos(toep,Gamma)
-        fermiT = self.fdd(toep,0,self.T)
+        self.tipT = self.dynesdos(toep,Gammat)
+        self.fermiT = self.fdd(toep,0,self.T)
         #convolution with toepliz matrix
-        curr = np.dot(np.multiply(sample,fermi),tipT)-np.dot(sample,np.multiply(tipT,fermiT))
+        curr = np.dot(np.multiply(self.sample,self.fermi),self.tipT)-np.dot(self.sample,np.multiply(self.tipT,self.fermiT))
         #normalization
         didv = np.gradient(np.array(curr))
         didv = didv/didv[0]
-        return didv
+        return norm*didv
 
     def fitModel(self):
         model = Model(self.dynesConvT)
         params = model.make_params()
-        print(params)
-        params['Gamma'].set(self.Gamma,vary=False)
-        params['alpha'].set(self.alpha,vary=True,min=0,max=np.pi)
+        params['Gammas'].set(self.Gammas,vary=True)
+        params['Gammat'].set(self.Gammat,vary=False)
+        params['alpha'].set(self.alpha,vary=False,min=0,max=np.pi)
+        params['norm'].set(self.norm)
 
         
         #perform fit
