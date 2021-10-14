@@ -700,27 +700,39 @@ import functions
 from lmfit import Model
 
 class fitspec(Green):
-    def __init__(self,Epx,dimer) -> None:
-        print('ciao')
+    def __init__(self,Epx,dimer,mode='dimer',T=1.5) -> None:
+        ##### PARAMETERS INITIALIZATION #####
         self.Eh = const.physical_constants['atomic unit of energy'][0]
         self.deltas = 2.87e-5
         self.deltat = 2.36e-05
-        self.En = np.linspace(-8*self.delta,8*self.delta,Epx)
-        self.Vn = np.linspace(-4*self.delta,4*self.delta,Epx)
+        self.En = np.linspace(-8*self.deltas,8*self.deltas,Epx)
+        self.Vn = np.linspace(-4*self.deltas,4*self.deltas,Epx)
+        self.T = T
         if dimer == '100':
             self.x1 = 0
             self.x2 = 12.7
-        if dimer == '110':
+        elif dimer == '110':
             self.x1 = 12.7
             self.x2 = 12.7
-        if dimer == '120':
+        elif dimer == '120':
             self.x1 = 6.35
             self.x2 = 12.7
+        
+        if mode == 'dimer':
+            self.J1 = -0.0296
+            self.J2 = -0.0296
+        elif mode == 'isolated':
+            self.J1 = -0.0236
+            self.J2 = 0
+        elif mode == 'BCS':
+            self.J1 = -0.0296
+            self.J2 = 0
 
     def load(self,filename,offset=0):
         self.spectra = nanonis.biasSpectroscopy()
         self.spectra.load(filename)
         self.spectra.biasOffset(offset)
+        self.spectra.conductance = self.spectra.conductance/self.spectra.conductance[0]
         #convert to atomic units
         self.spectra.bias = self.spectra.bias*const.e/self.Eh
 
@@ -736,10 +748,10 @@ class fitspec(Green):
             f = 1/(1+np.exp((E-mu)/(const.k*T/self.Eh)))
         return f
 
-    def YSRdos(self,Gamma,alpha,J1=-0.0296,J2=-0.0296,m=20.956,pf=0.274,c=1):
+    def YSRdos(self,Gamma,alpha,m=20.956,pf=0.274,c=1):
         ww = []
-        for V in self.Vn*c:
-            self.dG(0,0,V+np.complex(0,Gamma),self.x1,self.x2,J1,J2,alpha,self.deltas,m,pf,1)
+        for V in self.En*c:
+            self.dG(0,0,V+np.complex(0,Gamma),self.x1,self.x2,self.J1,self.J2,alpha,self.deltas,m,pf,1)
             a=self.deltaG
             self.G(0,0,V+np.complex(0,Gamma),self.deltas,m,pf,1)
             b=self.G0
@@ -747,27 +759,41 @@ class fitspec(Green):
         return ww
 
     #convolution with toepliz matrix (Fast)
-    def dynesConvT(self,A,Gamma,alpha):
+    def dynesConvT(self,bias,Gamma,alpha):
+        #store the parameters as fit start
+        self.Gamma = Gamma
+        self.alpha = alpha
+
         A,B = np.meshgrid(self.Vn,self.En)
         toep = A+B
         #generate linear dos
         sample = self.YSRdos(Gamma,alpha)
-        fermi = self.fdd(self.En,0,1.5)
+        fermi = self.fdd(self.En,0,self.T)
         # generate toepliz 
         tipT = self.dynesdos(toep,Gamma)
-        fermiT = self.fdd(toep,0,1.5)
+        fermiT = self.fdd(toep,0,self.T)
         #convolution with toepliz matrix
         curr = np.dot(np.multiply(sample,fermi),tipT)-np.dot(sample,np.multiply(tipT,fermiT))
-        return curr
+        #normalization
+        didv = np.gradient(np.array(curr))
+        didv = didv/didv[0]
+        return didv
 
-    def fitModel(self,dynes,angle,A):
+    def fitModel(self):
         model = Model(self.dynesConvT)
         params = model.make_params()
-        params['dynes'].set(5e-7)
-        params['angle'].set(np.pi/2)
+        params['Gamma'].set(self.Gamma,vary=False)
+        params['alpha'].set(self.alpha,vary=False)
         
         #perform fit
-        # self.fit_res  = model.fit(self.)
+        self.fit_res  = model.fit(self.spectra.conductance,bias=self.spectra.bias)
+        self.fit_res_eval = self.fit_res.eval(x=self.bias)
+
+    def showResults(self):
+        fig,self.ax = plt.subplots(1)
+        self.ax.plot(self.bias,self.conductance)
+        self.ax.plot(self.bias,self.fit_res.eval(x=self.bias))
+
     def model_init():
         pass
     
@@ -800,5 +826,3 @@ class fitspec(Green):
             (self.fdd(self.En,0,T)-self.fdd(self.En+V,0,T)), x=self.En)
             curr.append(currp)
         return -A*np.gradient(np.array(curr))
-
-print('hello world')
