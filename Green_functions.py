@@ -83,9 +83,9 @@ class Green:
             a=np.divide(2,np.sqrt(3))*np.abs(x2)
             b=x1-np.divide(1,np.sqrt(3))*np.abs(x2)
             c=x1+np.divide(1,np.sqrt(3))*np.abs(x2)
-            if np.abs(x1) < 0.001 and np.abs(x2) < 0.001:
-                G1 = 0.3
-                G2 = -0.3
+            if np.abs(x1) < 0.0001 and np.abs(x2) < 0.0001:
+                G1 = np.sqrt(3)*pf
+                G2 = 0.0
             elif np.abs(x2)<0.001:
                 G1=(2*pf/(np.sqrt(3)*x1))*np.exp(-chi*x1)*np.sin(pf*x1)+(np.cos(pf*x1)/np.sqrt(3))*np.exp(-chi*x1)
                 G2=-(2*pf/(np.sqrt(3)*x1))*np.exp(-chi*x1)*np.cos(pf*x1)+(np.sin(pf*x1)/np.sqrt(3))*np.exp(-chi*x1)-1/(np.sqrt(3)*x1)
@@ -95,7 +95,7 @@ class Green:
             else:
                 G1=np.exp(-chi*c)*np.sin(pf*c)*(1/(np.sqrt(3)*b)+1/(np.sqrt(3)*a))+np.exp(-chi*b)*np.sin(pf*b)*(-1/(np.sqrt(3)*a)+1/(np.sqrt(3)*c))+np.exp(-chi*a)*np.sin(pf*a)*(-1/(np.sqrt(3)*b)+1/(np.sqrt(3)*c))
                 G2=np.exp(-chi*c)*np.cos(pf*c)*(-1/(np.sqrt(3)*b)-1/(np.sqrt(3)*a))+np.exp(-chi*b)*np.cos(pf*b)*(1/(np.sqrt(3)*a)-1/(np.sqrt(3)*c))+np.exp(-chi*a)*np.cos(pf*a)*(1/(np.sqrt(3)*b)-1/(np.sqrt(3)*c))-1/(np.sqrt(3)*c)
-            self.G0=-(m*pf/np.pi)*G1*BCS-(m*pf/np.pi)*G2*xi
+            self.G0=-(m*pf/np.sqrt(3)*np.pi)*G1*BCS-(m*pf/np.sqrt(3)*np.pi)*G2*xi
         
         
     def definitions(self,En,x,y,J1,J2,alpha,delta,m,pf,mode):
@@ -701,8 +701,10 @@ from lmfit import Model
 
 class fitspec(Green):
     def __init__(self,Epx,dimer) -> None:
+        print('ciao')
         self.Eh = const.physical_constants['atomic unit of energy'][0]
-        self.delta = 0.0000287
+        self.deltas = 2.87e-5
+        self.deltat = 2.36e-05
         self.En = np.linspace(-8*self.delta,8*self.delta,Epx)
         self.Vn = np.linspace(-4*self.delta,4*self.delta,Epx)
         if dimer == '100':
@@ -723,8 +725,8 @@ class fitspec(Green):
         self.spectra.bias = self.spectra.bias*const.e/self.Eh
 
 
-    def dynesdos(self, E, Gamma, deltatip=0.0000287): #dynes function
-        dos = np.real((E-1j*Gamma)/np.sqrt((E-1j*Gamma)**2-deltatip**2))
+    def dynesdos(self, E, Gamma): #dynes function
+        dos = np.real((E-1j*Gamma)/np.sqrt((E-1j*Gamma)**2-self.deltat**2))
         return np.abs(dos)    
 
     def fdd(self, E,mu, T): #fermi Dirac function
@@ -734,29 +736,29 @@ class fitspec(Green):
             f = 1/(1+np.exp((E-mu)/(const.k*T/self.Eh)))
         return f
 
-    def YSRdos(self,dynes,alpha,J1=-0.0296,J2=-0.0296,deltas=0.0000287,m=20.956,pf=0.274,c=1):
+    def YSRdos(self,Gamma,alpha,J1=-0.0296,J2=-0.0296,m=20.956,pf=0.274,c=1):
         ww = []
         for V in self.Vn*c:
-            self.dG(0,0,V+np.complex(0,dynes),self.x1,self.x2,J1,J2,alpha,deltas,m,pf,1)
+            self.dG(0,0,V+np.complex(0,Gamma),self.x1,self.x2,J1,J2,alpha,self.deltas,m,pf,1)
             a=self.deltaG
-            self.G(0,0,V+np.complex(0,dynes),deltas,m,pf,1)
+            self.G(0,0,V+np.complex(0,Gamma),self.deltas,m,pf,1)
             b=self.G0
             ww.append(-np.imag(a[0][0]+a[1][1]+a[2][2]+a[3][3]+b[0][0]+b[1][1]+b[2][2]+b[3][3]))
         return ww
 
     #convolution with toepliz matrix (Fast)
-    def dynesConvT(self,A,dynes,alpha):
+    def dynesConvT(self,A,Gamma,alpha):
         A,B = np.meshgrid(self.Vn,self.En)
         toep = A+B
         #generate linear dos
-        sample = self.YSRdos(dynes,alpha)
+        sample = self.YSRdos(Gamma,alpha)
         fermi = self.fdd(self.En,0,1.5)
         # generate toepliz 
-        tipT = self.dynesdos(toep,dynes)
+        tipT = self.dynesdos(toep,Gamma)
         fermiT = self.fdd(toep,0,1.5)
         #convolution with toepliz matrix
         curr = np.dot(np.multiply(sample,fermi),tipT)-np.dot(sample,np.multiply(tipT,fermiT))
-        return A*np.gradient(curr)
+        return curr
 
     def fitModel(self,dynes,angle,A):
         model = Model(self.dynesConvT)
