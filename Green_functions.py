@@ -704,7 +704,7 @@ class fitspec(Green):
         self.Eh = const.physical_constants['atomic unit of energy'][0]
         self.deltas = 2.87e-5
         self.deltat = 2.36e-05
-        self.En = np.linspace(-8*self.deltas,8*self.deltas,Epx)
+        self.En = np.linspace(-16*self.deltas,16*self.deltas,Epx)
         self.Vn = np.linspace(-4*self.deltas,4*self.deltas,Epx)
         self.T = T
         if dimer == '100':
@@ -734,7 +734,8 @@ class fitspec(Green):
         self.spectra.conductance = self.spectra.conductance/self.spectra.conductance[0]
         #convert to atomic units
         self.spectra.bias = self.spectra.bias*const.e/self.Eh
-
+        #the new Vn is the bias of the experimental conductance
+        self.Vn = self.spectra.bias
 
     def dynesdos(self, E, Gamma): #dynes function
         dos = np.real((E-1j*Gamma)/np.sqrt((E-1j*Gamma)**2-self.deltat**2))
@@ -744,7 +745,7 @@ class fitspec(Green):
         if T == 0:
             f = np.heaviside(-(E-mu), 1)
         else:
-            f = 1/(1+np.exp((E-mu)/(const.k*T/self.Eh)))
+            f = 1/(1+np.exp((-E+mu)/(const.k*T/self.Eh)))
         return f
 
     def YSRdos(self,Gamma,alpha,m=20.956,pf=0.274,c=1):
@@ -781,17 +782,20 @@ class fitspec(Green):
     def fitModel(self):
         model = Model(self.dynesConvT)
         params = model.make_params()
+        print(params)
         params['Gamma'].set(self.Gamma,vary=False)
-        params['alpha'].set(self.alpha,vary=False)
+        params['alpha'].set(self.alpha,vary=True,min=0,max=np.pi)
+
         
         #perform fit
-        self.fit_res  = model.fit(self.spectra.conductance,bias=self.spectra.bias)
-        self.fit_res_eval = self.fit_res.eval(x=self.bias)
+        self.fit_res  = model.fit(self.spectra.conductance,params,bias=self.Vn)
+        self.fit_res_eval = self.fit_res.eval(x=self.spectra.bias)
+
 
     def showResults(self):
         fig,self.ax = plt.subplots(1)
-        self.ax.plot(self.bias,self.conductance)
-        self.ax.plot(self.bias,self.fit_res.eval(x=self.bias))
+        self.ax.plot(self.spectra.bias,self.spectra.conductance)
+        self.ax.plot(self.spectra.bias,self.fit_res.eval(x=self.Vn))
 
     def model_init():
         pass
