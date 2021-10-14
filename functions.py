@@ -1,5 +1,5 @@
 import numpy as np
-from modules import distributions
+import distributions
 import nanonis
 import scipy.signal as signal
 from lmfit.models import VoigtModel
