@@ -8,7 +8,7 @@ from scipy import constants as const
 
 
 ##  THIS PROGRAM DOES NOT PLOT ANYTHING. ANOTHER PROGRAMM IS NEEDED TO PLOT ANY KIND OF DOS, SPDOS ... ##
-
+print('ciao')
 
 class Green:
 
