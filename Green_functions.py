@@ -815,15 +815,15 @@ class fitspec(Green):
                 a=self.deltaG
                 self.G(0,0,toep[i,j]+np.complex(0,dynes),deltas,m,pf,1)
                 b=self.G0
-                YSRdosT[i,j] = -np.imag(a[0][0]+a[1][1]+a[2][2]+a[3][3]+b[0][0]+b[1][1]+b[2][2]+b[3][3])
+                YSRdosT[i,j] = -np.imag(a[0][0]+a[1][1]+a[2][2]+b[0][0]+b[1][1])#a[3][3]+b[0][0]+b[1][1]+b[2][2]+b[3][3])
         return YSRdosT
 
     # convolution with np.trapz module (Slow)
     def dynesConv(self,bias,A,deltat=0.0000287,dynest=5e-7,T=1.5):
-        self.V = np.linspace(-4*self.delta,4*self.delta,200)
+        self.V = np.linspace(-4*self.deltat,4*self.deltat,200)
         curr = []
         for V in self.V:
-            currp = np.trapz(self.YSRdos(5e-7,2,2)*self.dynesdos(self.En+V,dynest,deltat)*
+            currp = np.trapz(self.YSRdos(5e-7,2,2)*self.dynesdos(self.En+V,dynest)*
             (self.fdd(self.En,0,T)-self.fdd(self.En+V,0,T)), x=self.En)
             curr.append(currp)
         return -A*np.gradient(np.array(curr))

@@ -545,8 +545,9 @@ class linescan():
 
     def normalizeRange(self, E_range): #normalize data given an energy range
         index = []
-        index.append(self.energyFind(E_range[1]))
-        index.append(self.energyFind(E_range[0]))
+        index.append(self.energyFind(-E_range[0]))
+        index.append(self.energyFind(-E_range[1]))
+        print(index)
         for i in range(len(self.name)):
             conductanceCut = self.conductance[i][index[0]:index[1]]
             avg = mean(conductanceCut)

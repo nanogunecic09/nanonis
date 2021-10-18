@@ -80,7 +80,7 @@ class Superconductor():
 
     def load(self,bias,conductance):
         self.bias = np.flip(bias)
-        self.conductance = conductance
+        self.conductance = conductance/conductance[0]
 
     def fdd(self, E, mu, T): #fermi Dirac function
         if T == 0:
@@ -100,17 +100,18 @@ class Superconductor():
             currp = np.trapz(self.dynesdos(self.E, Gamma1, Delta1)*self.dynesdos(self.E-Vp,
                              Gamma2, Delta2)*(self.fdd(self.E, Vp, T)-self.fdd(self.E, 0, T)), x=self.E)
             curr.append(currp)
-        return A*np.gradient(np.array(curr))
+        didv = np.gradient(np.array(curr))
+        return A*didv/didv[0]
     
     def fitModel(self, T, Delta1, Gamma1, Delta2, Gamma2,A):
         model = Model(self.dos)
         params = model.make_params()
         params['T'].set(T,vary=False)
-        params['Delta1'].set(Delta1,vary=True)
-        params['Gamma1'].set(Gamma1,min=1e-4,max=40e-6)
-        params['Delta2'].set(Delta2,vary=False)
-        params['Gamma2'].set(Gamma2,min=1e-4,max=40e-6)
-        params['A'].set(A)
+        params['Delta1'].set(Delta1,vary=False)
+        params['Gamma1'].set(Gamma1,min=1e-7,max=4e-5,vary=True)
+        params['Delta2'].set(Delta2,vary=True,min=0.1e-3)
+        params['Gamma2'].set(Gamma2,min=1e-7,max=4e-5,vary=True)
+        params['A'].set(A,vary=False)
 
         self.fit_res = model.fit(self.conductance,params,bias=self.bias)
         self.fit_res_eval = self.fit_res.eval(x=self.bias)
