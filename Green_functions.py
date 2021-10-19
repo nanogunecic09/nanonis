@@ -64,7 +64,7 @@ class Green:
             elif x1+x2<0.00001 and x1-x2>0.00001:
                 G1=(np.exp((m*w/pf)*(x1+x2))*(-1/x1-1/x2)*pf*np.sin(pf*(-x1-x2))+np.exp(-(m*w/pf)*(-x2+x1))*(-1/x2+1/x1)*pf*np.sin(pf*(-x2+x1)) )*(m/(2*np.pi*pf**2))*BCS
                 G2=(np.exp((m*w/pf)*(x1+x2))*(-1/x1-1/x2)*pf*np.cos(pf*(-x1-x2))+np.exp(-(m*w/pf)*(-x2+x1))*(-1/x2+1/x1)*pf*np.cos(pf*(-x2+x1)) +2*pf/x2)*(m/(2*np.pi*pf**2))*xi
-            self.G0=-G1-G2
+            self.G0=-G1+G2
 
         if mode==2:
             ## mode=2 is for the hexagonal-shaped Fermi contour
@@ -81,10 +81,10 @@ class Green:
                 x1=D[0]
                 x2=D[1]
             chi=m*w/pf
-            a=(np.divide(2,np.sqrt(3))*np.abs(x2))*pf
-            b=(x1-np.divide(1,np.sqrt(3))*np.abs(x2))*pf
-            c=(x1+np.divide(1,np.sqrt(3))*np.abs(x2))*pf
-            if np.abs(x1) < 0.001 and np.abs(x2) < 0.001:
+            a=np.divide(2,np.sqrt(3))*np.abs(x2)
+            b=x1-np.divide(1,np.sqrt(3))*np.abs(x2)
+            c=x1+np.divide(1,np.sqrt(3))*np.abs(x2)
+            if np.abs(x1) < 0.1 and np.abs(x2) < 0.1:
                 G1 = np.sqrt(3)
                 G2 = 0.0
             elif np.abs(x2)<0.001:
@@ -94,9 +94,9 @@ class Green:
                 G1=(1/(np.sqrt(3)*x1*pf))*np.exp(-2*chi*x1)*np.sin(2*pf*x1)+(np.cos(2*pf*x1)/np.sqrt(3))*np.exp(-2*chi*x1)
                 G2=(1/(np.sqrt(3)*x1*pf))*np.exp(-2*chi*x1)*np.cos(2*pf*x1)-(np.sin(2*pf*x1)/np.sqrt(3))*np.exp(-2*chi*x1)-2/(2*np.sqrt(3)*x1*pf)
             else:
-                G1=np.exp(-chi*c)*np.sin(c)*(1/(np.sqrt(3)*b)+1/(np.sqrt(3)*a))+np.exp(-chi*b)*np.sin(b)*(-1/(np.sqrt(3)*a)+1/(np.sqrt(3)*c))+np.exp(-chi*a)*np.sin(a)*(-1/(np.sqrt(3)*b)+1/(np.sqrt(3)*c))
-                G2=np.exp(-chi*c)*np.cos(c)*(-1/(np.sqrt(3)*b)-1/(np.sqrt(3)*a))+np.exp(-chi*b)*np.cos(b)*(1/(np.sqrt(3)*a)-1/(np.sqrt(3)*c))+np.exp(-chi*a)*np.cos(a)*(1/(np.sqrt(3)*b)-1/(np.sqrt(3)*c))+2/(np.sqrt(3)*c)
-            self.G0=-(m/(np.sqrt(3)*np.pi))*G1*BCS-(m/(np.sqrt(3)*np.pi))*G2*xi
+                G1=(np.exp(-chi*c)*np.sin(c*pf)*(1/(np.sqrt(3)*b)+1/(np.sqrt(3)*a))+np.exp(-chi*b)*np.sin(b*pf)*(-1/(np.sqrt(3)*a)+1/(np.sqrt(3)*c))+np.exp(-chi*a)*np.sin(a*pf)*(-1/(np.sqrt(3)*b)+1/(np.sqrt(3)*c)))/pf
+                G2=(np.exp(-chi*c)*np.cos(c*pf)*(-1/(np.sqrt(3)*b)-1/(np.sqrt(3)*a))+np.exp(-chi*b)*np.cos(b*pf)*(1/(np.sqrt(3)*a)-1/(np.sqrt(3)*c))+np.exp(-chi*a)*np.cos(a*pf)*(1/(np.sqrt(3)*b)-1/(np.sqrt(3)*c))+2/(np.sqrt(3)*c))/pf
+            self.G0=-(2*m/(np.sqrt(3)*np.pi))*G1*BCS-(2*m/(np.sqrt(3)*np.pi))*G2*xi
         
         
     def definitions(self,En,x,y,J1,J2,alpha,delta,m,pf,mode):
