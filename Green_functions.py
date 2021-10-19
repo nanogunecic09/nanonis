@@ -69,32 +69,34 @@ class Green:
         if mode==2:
             ## mode=2 is for the hexagonal-shaped Fermi contour
             ## x1=x and x2=y
+            k=0
             R=[[-1/2,-np.sqrt(3)/2],[np.sqrt(3)/2,-1/2]]
-            if x2>0 and x2>np.sqrt(3)*x1:
-                D=np.matmul(np.matmul(R,R),[x1,x2])
+            Rr=[[-1/2,np.sqrt(3)/2],[-np.sqrt(3)/2,-1/2]]
+            if x2>=0 and x2>np.sqrt(3)*x1:
+                D=np.matmul(Rr,[x1,x2])
                 x1=D[0]
                 x2=D[1]
-            elif x2<0 and x2<-np.sqrt(3)*x1:
+            elif x2<=0 and x2<-np.sqrt(3)*x1:
                 D=np.matmul(R,[x1,x2])
                 x1=D[0]
                 x2=D[1]
             chi=m*w/pf
-            a=np.divide(2,np.sqrt(3))*np.abs(x2)
-            b=x1-np.divide(1,np.sqrt(3))*np.abs(x2)
-            c=x1+np.divide(1,np.sqrt(3))*np.abs(x2)
-            if np.abs(x1) < 0.0001 and np.abs(x2) < 0.0001:
-                G1 = np.sqrt(3)*pf**2
+            a=(np.divide(2,np.sqrt(3))*np.abs(x2))*pf
+            b=(x1-np.divide(1,np.sqrt(3))*np.abs(x2))*pf
+            c=(x1+np.divide(1,np.sqrt(3))*np.abs(x2))*pf
+            if np.abs(x1) < 0.001 and np.abs(x2) < 0.001:
+                G1 = np.sqrt(3)
                 G2 = 0.0
             elif np.abs(x2)<0.001:
-                G1=(2*pf/(np.sqrt(3)*x1))*np.exp(-chi*x1)*np.sin(pf*x1)+(np.cos(pf*x1)/np.sqrt(3))*np.exp(-chi*x1)
-                G2=-(2*pf/(np.sqrt(3)*x1))*np.exp(-chi*x1)*np.cos(pf*x1)+(np.sin(pf*x1)/np.sqrt(3))*np.exp(-chi*x1)-1/(np.sqrt(3)*x1)
-            elif np.abs(np.sqrt(3)*x1-np.abs(x2))<0.001:
-                G1=(pf/(np.sqrt(3)*x1))*np.exp(-2*chi*x1)*np.sin(2*pf*x1)+(np.cos(2*pf*x1)/np.sqrt(3))*np.exp(-2*chi*x1)
-                G2=-(pf/(np.sqrt(3)*x1))*np.exp(-2*chi*x1)*np.cos(2*pf*x1)+(np.sin(2*pf*x1)/np.sqrt(3))*np.exp(-2*chi*x1)-1/(2*np.sqrt(3)*x1)
+                G1=(2/(np.sqrt(3)*x1*pf))*np.exp(-chi*x1)*np.sin(pf*x1)+(np.cos(pf*x1)/np.sqrt(3))*np.exp(-chi*x1)
+                G2=(2/(np.sqrt(3)*x1*pf))*np.exp(-chi*x1)*np.cos(pf*x1)-(np.sin(pf*x1)/np.sqrt(3))*np.exp(-chi*x1)-2/(np.sqrt(3)*x1*pf)
+            elif np.abs(np.sqrt(3)*x1-np.abs(x2))<0.001*np.sqrt(3):
+                G1=(1/(np.sqrt(3)*x1*pf))*np.exp(-2*chi*x1)*np.sin(2*pf*x1)+(np.cos(2*pf*x1)/np.sqrt(3))*np.exp(-2*chi*x1)
+                G2=(1/(np.sqrt(3)*x1*pf))*np.exp(-2*chi*x1)*np.cos(2*pf*x1)-(np.sin(2*pf*x1)/np.sqrt(3))*np.exp(-2*chi*x1)-2/(2*np.sqrt(3)*x1*pf)
             else:
-                G1=np.exp(-chi*c)*np.sin(pf*c)*(1/(np.sqrt(3)*b)+1/(np.sqrt(3)*a))+np.exp(-chi*b)*np.sin(pf*b)*(-1/(np.sqrt(3)*a)+1/(np.sqrt(3)*c))+np.exp(-chi*a)*np.sin(pf*a)*(-1/(np.sqrt(3)*b)+1/(np.sqrt(3)*c))
-                G2=np.exp(-chi*c)*np.cos(pf*c)*(-1/(np.sqrt(3)*b)-1/(np.sqrt(3)*a))+np.exp(-chi*b)*np.cos(pf*b)*(1/(np.sqrt(3)*a)-1/(np.sqrt(3)*c))+np.exp(-chi*a)*np.cos(pf*a)*(1/(np.sqrt(3)*b)-1/(np.sqrt(3)*c))-1/(np.sqrt(3)*c)
-            self.G0=-(m*pf/(np.sqrt(3)*np.pi*pf**2))*G1*BCS-(m*pf/(np.sqrt(3)*np.pi*pf**2))*G2*xi
+                G1=np.exp(-chi*c)*np.sin(c)*(1/(np.sqrt(3)*b)+1/(np.sqrt(3)*a))+np.exp(-chi*b)*np.sin(b)*(-1/(np.sqrt(3)*a)+1/(np.sqrt(3)*c))+np.exp(-chi*a)*np.sin(a)*(-1/(np.sqrt(3)*b)+1/(np.sqrt(3)*c))
+                G2=np.exp(-chi*c)*np.cos(c)*(-1/(np.sqrt(3)*b)-1/(np.sqrt(3)*a))+np.exp(-chi*b)*np.cos(b)*(1/(np.sqrt(3)*a)-1/(np.sqrt(3)*c))+np.exp(-chi*a)*np.cos(a)*(1/(np.sqrt(3)*b)-1/(np.sqrt(3)*c))+2/(np.sqrt(3)*c)
+            self.G0=-(m/(np.sqrt(3)*np.pi))*G1*BCS-(m/(np.sqrt(3)*np.pi))*G2*xi
         
         
     def definitions(self,En,x,y,J1,J2,alpha,delta,m,pf,mode):
