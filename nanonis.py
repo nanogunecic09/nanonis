@@ -583,6 +583,7 @@ class linescan():
         for i in range(self.conductance.shape[0]):
             self.bias_dec, self.conductance_dec[i,:] = deconv.dynesDeconvolute_nof(self.bias,self.conductance[i,:],gap, temperature, dynesParameter, energyR, spacing,x_min,x_max,N)
         # normalize
+        self.bias_dec = np.flip(self.bias_dec)
         for i in range(0,self.conductance_dec.shape[0]):
             self.conductance_dec[i,:] = self.conductance_dec[i,:]/self.conductance_dec[i,abs(self.bias_dec-normalizeE).argmin()]
 
@@ -591,6 +592,7 @@ class linescan():
         self.conductance_dec = np.zeros((20,int(math.ceil(energyR*2/spacing))))
         for i in range(self.conductance.shape[0]):
             self.bias_dec, self.conductance_dec[i,:] = deconv.dynesDeconvolute(self.bias,self.conductance[i,:],gap, temperature, dynesParameter, energyR, spacing,x_min,x_max,N, window,order,n)
+        self.bias_dec = np.flip(self.bias_dec)
         # normalize
         for i in range(0,self.conductance_dec.shape[0]):
             self.conductance_dec[i,:] = self.conductance_dec[i,:]/self.conductance_dec[i,abs(self.bias_dec-normalizeE).argmin()]
