@@ -342,7 +342,7 @@ class simulation(Green):
         self.map = np.array(v1)
 
     # to calculate the G0 of the system with SQUARED fermi surface
-    def G0MAPcalcSquare(self,delta=0.0000287,m=20.956,pf=0.274,dynes=5e-7,xy=(-20,20),xypx=50):
+    def G0MAPcalcSquare(self,delta=0.0000287,m=20.956,pf=0.274,dynes=5e-7,xy=(-20,20),xypx=50,mode=1):
         t0 = time.time()
         self.x=np.linspace(xy[0],xy[1],xypx)
         self.y=np.linspace(xy[0],xy[1],xypx)
@@ -355,7 +355,7 @@ class simulation(Green):
                 total = cycle*len(self.x)
                 print('1 cycle:',cycle,'allcycle:',total)
             for j in self.y:
-                self.G(i,j,2*delta+np.complex(0,dynes),delta,m,pf,2)
+                self.G(i,j,2*delta+np.complex(0,dynes),delta,m,pf,mode)
                 b=self.G0
                 v1.append(-np.imag(+b[0][0]+b[1][1]+b[2][2]+b[3][3]))
             v2.append(v1)
@@ -399,7 +399,7 @@ class simulation(Green):
 
     #calculate the G of an isolated YSR
 
-    def GYSRMapCalcSquare(self,J1=-0.0296,J2=-0.0296,alpha=0,delta=0.0000287,m=20.956,pf=0.274,dynes=5e-7,Epx=50,xy=(-20,20),xypx=50,YSRenergy=0.000020947026906146):
+    def GYSRMapCalcSquare(self,J1=-0.0296,J2=-0.0296,alpha=0,delta=0.0000287,m=20.956,pf=0.274,dynes=5e-7,Epx=50,xy=(-20,20),xypx=50,YSRenergy=0.000020947026906146,mode=1):
         #initialize variables
         self.En =np.linspace(0,delta,Epx)
         self.x=np.linspace(xy[0],xy[1],xypx)
@@ -413,7 +413,7 @@ class simulation(Green):
             self.timing(count,t0)
             for j in self.y:
                 self.G(i,j,YSRenergy+np.complex(0,dynes),delta,m,pf,2)
-                self.dG(i,j,YSRenergy+np.complex(0,dynes),5,5,J1,0,alpha,delta,m,pf,2)
+                self.dG(i,j,YSRenergy+np.complex(0,dynes),5,5,J1,0,alpha,delta,m,pf,mode)
                 a=self.deltaG
                 v1.append(-np.imag(a[0][0]+a[1][1]+a[2][2]+a[3][3]))
             v2.append(v1)
@@ -447,6 +447,7 @@ class simulation(Green):
         self.En =np.linspace(0,delta,Epx)
         self.x=np.linspace(x[0],x[1],xypx)
         self.phi=np.linspace(0,2*np.pi,xypx)
+        self.cycles = len(self.x)
         t0 = time.time()
         v1 = []
         v2 = []
@@ -541,7 +542,8 @@ class simulation(Green):
             self.cbar = self.figure.colorbar(self.im1,cax=cax)
 
     #polar plot of 2D map dependent on r and phi
-    def mapPolarPlot(self,A):
+    def mapPolarPlot(self):
+        A = self.map #map load
         self.figure,self.axMap = plt.subplots(dpi=120,subplot_kw=dict(projection='polar'))
         self.figure.subplots_adjust(bottom=0.3)
         self.im1 = self.axMap.contourf(self.phi,self.x,A,1000,cmap='Blues',interpolation='gauss',antialiasing='on')
