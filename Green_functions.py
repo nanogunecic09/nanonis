@@ -85,7 +85,7 @@ class Green:
             b=x1-np.divide(1,np.sqrt(3))*np.abs(x2)
             c=x1+np.divide(1,np.sqrt(3))*np.abs(x2)
             if np.abs(x1) < 0.0001 and np.abs(x2) < 0.0001:
-                G1 = np.sqrt(3)*pf
+                G1 = np.sqrt(3)*pf**2
                 G2 = 0.0
             elif np.abs(x2)<0.001:
                 G1=(2*pf/(np.sqrt(3)*x1))*np.exp(-chi*x1)*np.sin(pf*x1)+(np.cos(pf*x1)/np.sqrt(3))*np.exp(-chi*x1)
@@ -96,7 +96,7 @@ class Green:
             else:
                 G1=np.exp(-chi*c)*np.sin(pf*c)*(1/(np.sqrt(3)*b)+1/(np.sqrt(3)*a))+np.exp(-chi*b)*np.sin(pf*b)*(-1/(np.sqrt(3)*a)+1/(np.sqrt(3)*c))+np.exp(-chi*a)*np.sin(pf*a)*(-1/(np.sqrt(3)*b)+1/(np.sqrt(3)*c))
                 G2=np.exp(-chi*c)*np.cos(pf*c)*(-1/(np.sqrt(3)*b)-1/(np.sqrt(3)*a))+np.exp(-chi*b)*np.cos(pf*b)*(1/(np.sqrt(3)*a)-1/(np.sqrt(3)*c))+np.exp(-chi*a)*np.cos(pf*a)*(1/(np.sqrt(3)*b)-1/(np.sqrt(3)*c))-1/(np.sqrt(3)*c)
-            self.G0=-(m*pf/np.sqrt(3)*np.pi)*G1*BCS-(m*pf/np.sqrt(3)*np.pi)*G2*xi
+            self.G0=-(m/np.sqrt(3)*np.pi*pf**2)*G1*BCS-(m/np.sqrt(3)*np.pi*pf**2)*G2*xi
         
         
     def definitions(self,En,x,y,J1,J2,alpha,delta,m,pf,mode):
@@ -701,11 +701,11 @@ import functions
 from lmfit import Model
 
 class fitspec(Green):
-    def __init__(self,Epx,dimer,mode='dimer',T=1.5) -> None:
+    def __init__(self,Epx,dimer,mode='isolated',T=1.5) -> None:
         ##### PARAMETERS INITIALIZATION #####
         self.Eh = const.physical_constants['atomic unit of energy'][0]
         self.deltas = 2.87e-5
-        self.deltat = 2.36e-05
+        self.deltat = 2.36e-5
         self.En = np.linspace(-8*self.deltas,8*self.deltas,Epx)
         self.Vn = np.linspace(-4*self.deltas,4*self.deltas,Epx)
         self.T = T
@@ -744,7 +744,7 @@ class fitspec(Green):
 
     def fdd(self, E,mu, T): #fermi Dirac function
         if T == 0:
-            f = np.heaviside(-(E-mu), 1)
+            f = np.heaviside((E-mu), 1)
         else:
             f = 1/(1+np.exp((E-mu)/(const.k*T/self.Eh)))
         return f
@@ -756,7 +756,7 @@ class fitspec(Green):
             a=self.deltaG
             self.G(0,0,V+np.complex(0,Gamma),self.deltas,m,pf,1)
             b=self.G0
-            ww.append(-np.imag(a[0][0]+a[1][1]+a[2][2]+a[3][3]+b[0][0]+b[1][1]+b[2][2]+b[3][3]))
+            ww.append(-np.imag(a[0][0]+a[1][1]+b[0][0]+b[1][1]))#a[2][2]+a[3][3]+b[0][0]+b[1][1]+b[2][2]+b[3][3]))
         return ww
 
     #convolution with toepliz matrix (Fast)
@@ -767,6 +767,7 @@ class fitspec(Green):
 
         A,B = np.meshgrid(self.Vn,self.En)
         toep = A+B
+        print(np.size(toep))
         #generate linear dos
         sample = self.YSRdos(Gamma,alpha)
         fermi = self.fdd(self.En,0,self.T)
