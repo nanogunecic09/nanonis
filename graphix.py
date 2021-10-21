@@ -26,7 +26,7 @@ from lmfit import Model
 # cutmode different than line allows to click and retrieve the point number saved in self.points
 # flipud='on' flips the map up-down
 # noline='on' is for loading datasets that are not linescans but we still want to plot them with imshow.
-
+# LStype change allows to load different LS formats. Can be: 'normal', the conventional set of .dat files, 'wsxm' a txt file with a LS extracted from WSXM, .3ds a linescan saved in binary.
 class lineProfile():
 
     def __init__(self, vmin=0, vmax=4,influence='off',range=0,plugins='on',cutMode='line',flipud='off',noline='off',LStype='normal'): # vmin/vmax colourscale, cut=True enables vertical cuts
@@ -134,7 +134,6 @@ class lineProfile():
         self.linescan.normalizeTo(energy)
         self.linescan.biasOffset(offset)
         self.axMap.cla()
-        
         self.axMap.set_title(self.linescan.name[0]+' - '+self.linescan.name[-1], fontweight='bold')
         self.cmin = self.linescan.conductance.min()
         self.cmax = self.linescan.conductance.max()
@@ -182,8 +181,7 @@ class lineProfile():
                     self.cutPlotRange(self.energyCut*1e-3)            
     
     def cutSave(self,energy,distCut): #save the point clicked on the plot and put a dot in the graph
-        bias = np.linspace(self.linescan.bias[0],self.linescan.bias[-1], len(self.linescan.bias))
-        id = (abs(bias-energy)).argmin()
+        id = (abs(self.linescan.bias-energy)).argmin()
         id_d = (abs(self.linescan.distance-distCut)).argmin()
         self.axMap.scatter(self.linescan.bias[id],self.linescan.distance[id_d])
         self.points[0].append(self.linescan.distance[id_d])
@@ -191,9 +189,11 @@ class lineProfile():
         self.figure.canvas.draw_idle()
 
     def cutPlot(self, energy):
-        bias = np.linspace(self.linescan.bias[0],self.linescan.bias[-1], len(self.linescan.bias))
-        id = (abs(bias-energy)).argmin()
+        print(energy)
+        id = (abs(self.linescan.bias-energy)).argmin()
+        print(id)
         self.axMap.plot([self.linescan.bias[id]*1e3,self.linescan.bias[id]*1e3],[self.linescan.distance[0],self.linescan.distance[-1]])
+        print(self.linescan.bias[id])
         self.axCut.plot(self.linescan.distance, self.linescan.conductance[:,id], label=str(round(self.linescan.bias[id]*1e3,2)))
         self.axCut.legend()
         self.saveCSV(self.linescan.distance, self.linescan.conductance[:,id])
@@ -634,6 +634,106 @@ class LScut():
         comps = self.fitResult.eval(x=xp)
         plt.plot(xp,comps)
 
+class Zapproach(nanonis.Zapproach):
+
+    def __init__(self,vmin=0, vmax=4,influence='off',range=0,plugins='on'):
+        self.vmax = vmax
+        self.vmin = vmin
+        self.range = range
+        self.colormap = 'YlGnBu_r'
+        self.influence = influence
+        self.figure = plt.figure(figsize = (5,3))
+        if plugins=='on':
+            self.figure.subplots_adjust(bottom=0.3)
+            grid = gs.GridSpec(2, 1, height_ratios=[2, 1])
+            self.axMap = self.figure.add_subplot(grid[0])
+            self.axCut = self.figure.add_subplot(grid[1])
+            self.axCut.set_xlabel('Distance (nm)')
+            self.axCut.set_ylabel('dI/dV (arb. units)')
+            self.figure.canvas.mpl_connect('button_press_event', self.mapClick)
+            self.axmin = self.figure.add_axes([0.25, 0.1, 0.65, 0.03])
+            self.axmax = self.figure.add_axes([0.25, 0.15, 0.65, 0.03])
+            self.smin = Slider(self.axmin, 'Min', -4, 8, valinit =0)
+            self.smax = Slider(self.axmax, 'Max', -4, 8, valinit =4)
+            self.smin.on_changed(self.update)
+            self.smax.on_changed(self.update)
+        if plugins=='off':
+            self.axMap = self.figure.add_subplot(111)
+        self.figure.show()
+
+    def draw(self):
+        self.im1 = self.axMap.imshow(np.fliplr(self.conductance), aspect='auto', extent=self.extent,cmap = self.colormap, interpolation='nearest', vmin=self.vmin, vmax=self.vmax)
+
+    def mapload(self,fnames):
+        self.load(fnames)
+
+    
+    def normalize_range(self,E_range):
+        self.normalizeRange(E_range)
+        self.extent = [min(self.bias*1e3), max(self.bias*1e3), min(self.resistance), max(self.resistance)]
+
+        self.axMap.set_ylabel("Resistance (Ohms)")
+        self.axMap.set_xlabel("Bias (mV)")
+        self.axMap.cla()
+        self.draw()
+
+
+    def mapClick(self,event):
+        if event.inaxes == self.axMap:
+            self.energyCut = event.xdata
+            self.cutPlotRange(self.energyCut)
+
+    def update(self, val): #for the color scale sliders
+        self.im1.set_clim([self.smin.val,self.smax.val])
+        self.figure.canvas.draw()
+
+    def cutPlotRange(self, energy):
+        energy = energy*1e-3
+        def LSinfluence_avg(id_c,id_n,id_p): #return contuctance averaged between different cuts
+            idxs = np.arange(id_n,id_p)
+            LSconductance_avg = np.zeros(len(self.conductance))
+            if id_n == id_p: #checks that the range is >0
+                LSconductance_avg = self.conductance[:,id_c]
+            else:
+                for idx in idxs:
+                    LSconductance_avg = LSconductance_avg + self.conductance[:,idx]
+                LSconductance_avg = LSconductance_avg/len(idxs)
+            return LSconductance_avg
+    
+        #calculate the index based on the range given and the energy
+        id_c = (abs(self.bias-energy)).argmin()
+        id_n = (abs(self.bias-energy-self.range)).argmin()
+        id_p = (abs(self.bias-energy+self.range)).argmin()
+        print(id_c,id_n,id_p)
+        self.conductance_avg = LSinfluence_avg(id_c,id_n,id_p)
+        if id_n == id_p:
+            self.axMap.plot([self.bias[id_c]*1e3,self.bias[id_c]*1e3],[self.resistance[0],self.resistance[-1]])
+        else:
+            self.axMap.fill_between([self.bias[id_n]*1e3,self.bias[id_p]*1e3],self.resistance[0],self.resistance[-1],alpha=0.6)
+        self.axCut.plot(self.resistance,self.conductance_avg,label=str(round(self.bias[id_c]*1e3,3)))
+        self.axCut.legend()
+        self.saveCSV(self.resistance, self.conductance_avg)
+        self.figure.canvas.draw_idle()
+
+    def saveCSV(self, array1,array2):
+        #for incremental save
+        stridx = self.name[0].find('LS')
+        LSidx = self.name[0][stridx:stridx+4]
+        Eidx = np.round(self.energyCut,2)
+        count = 0
+        for i in os.listdir():
+            if 'Cut{}'.format(count) in i:
+                count += 1
+        matrix = np.vstack((array1,array2))
+        matrix = np.transpose(matrix)
+        filename_mod = "Cut{}_{}_{}.txt".format(count,LSidx,Eidx)
+        with open(filename_mod, 'w') as csvfile:
+            writer = csv.writer(csvfile)
+            [writer.writerow(r) for r in matrix]
+
+    #todo:influence vertical cut, plot with tools
+
+
 class grid():
 
     def __init__(self):
@@ -744,3 +844,5 @@ def set_labels_didv(axs):
     else:
         axs.set_xlabel('Bias (mV)')
         axs.set_ylabel('dI/dV (arb. units)')
+
+

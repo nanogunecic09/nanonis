@@ -540,6 +540,7 @@ class linescan():
 
     def normalizeTo(self, energy):
         index = self.energyFind(energy)
+        print(index)
         for i in range(len(self.name)):
             self.conductance[i][:] = self.conductance[i][:]/self.conductance[i][index]
 
@@ -611,7 +612,7 @@ class Zapproach():
             dummyR = []
             dummyOff = []
             spectra.load(files[0])
-            self.bias = flip(array(spectra.bias))
+            self.bias = spectra.bias
             for i in files:
                 spectra.load(i)
                 dummyCo.append(spectra.conductance)
@@ -655,8 +656,8 @@ class Zapproach():
 
         def normalizeRange(self, E_range): #normalize data given an energy range
             index = []
-            index.append(self.energyFind(E_range[0]))
             index.append(self.energyFind(E_range[1]))
+            index.append(self.energyFind(E_range[0]))
             for i in range(len(self.name)):
                 conductanceCut = self.conductance[i][index[0]:index[1]]
                 avg = mean(conductanceCut)
