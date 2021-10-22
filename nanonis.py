@@ -2,47 +2,41 @@
 #nanoImaging group @ nanoGune
 
 #from modules import functions
-from numpy import flip, arange, sqrt, array, linspace, zeros, rot90, flipud, fromfile, meshgrid, arange, fliplr, gradient, mean
+from numpy import flip, sqrt, array, linspace, zeros, rot90, flipud, fromfile, arange, fliplr, mean
 import numpy as np
-from pandas import DataFrame, read_csv
-from dateutil.parser import parse
+from pandas import read_csv
 from scipy import interpolate
 import struct
-import colorcet as cc
 import pandas as pd
 from scipy.signal import savgol_filter
 from scipy.interpolate import interp1d
-from superconductor import BCS_curve, dynes_curve, dynes_curve_diff
+from superconductor import dynes_curve, dynes_curve_diff
 from distributions import fermiDirac, fermiDirac_diff
 import deconvolution as deconv
 import math
-def readDATDec(filename, datatype):
+
+def readDATDec(filename, datatype): #?
     if datatype == 'dIdV':
         names = ['Bias', 'Conductance']
     if datatype == 'Cut':
         names = ['Distance(nm)', 'dI/dV (arb. units)']
-    with open(filename) as f:
-        data = read_csv(filename,sep=',', names=names)
-        
+    data = read_csv(filename,sep=',', names=names)
     return data
 
-def readGcutLS(didvfile,distancefile):
+def readGcutLS(didvfile,distancefile): #read a didv line cut
     conductance = []
     bias = []
     distance = []
-    with open(didvfile) as f:
-        dfdata = read_csv(didvfile, sep='\t', header=None)
-
+    dfdata = read_csv(didvfile, sep='\t', header=None)
     bias = dfdata.loc[:,0]
     conductance = dfdata.loc[:,1:dfdata.shape[1]:2].values
     conductance = rot90(conductance)
     conductance = fliplr(conductance)
-    with open(distancefile) as f:
-        dfdata = read_csv(distancefile, sep='\t', header=None)
+    dfdata = read_csv(distancefile, sep='\t', header=None)
     distance = dfdata.loc[:,0]
     return conductance, bias, distance
 
-def readDAT(filename):
+def readDAT(filename): #read a DAT file (didv,linescans)
     header = dict()
     with open(filename) as f:
         for i, line in enumerate(f):
@@ -56,7 +50,7 @@ def readDAT(filename):
     data = read_csv(filename, sep="\t", skiprows = skipR)
     return data, header
 
-def read3DS(filename):
+def read3DS(filename): #read a 3DS file (grids)
     header = dict()
     data = dict()
     param = dict()
@@ -133,7 +127,7 @@ def read3DS(filename):
         data[channels[i]] = data_unso[:,:,parms_num+(i*header['# Points']):parms_num+(i*header['# Points'])+header['# Points']]
     return data, header, param, mls, MLS
 
-def readSXM(filename):
+def readSXM(filename): #read a SXM file (scans)
     header = dict()
     data = dict()
     mparameters = dict()
@@ -282,7 +276,6 @@ class simpleScan():
         if 'Setpoint' in mparameters:
             self.mpsetpoint = mparameters['Setpoint']
             
-    
     #Define the real position in scan space.
     #The corners of the square are defined as
     #b--a
@@ -293,76 +286,39 @@ class simpleScan():
         #a1 = functions.rotatePoint(a0,self.scanangle)
 
 class biasSpectroscopy():
-
+    
     def __init__(self):
-
         self.data = {'Bias calc (V)':0}
     
-    def load(self,fname):
+    def load(self,fname): #parse the DAT file
         self.data, self.header = readDAT(fname)
         self.filename = fname
-        dummy = self.filename.split("/")
-        self.name = dummy[-1]
-        if 'Bias calc (V)' in self.data:
-            self.bias = self.data['Bias calc (V)']
-        elif 'Bias (V)' in self.data:
-            self.bias = self.data['Bias (V)']
-        #if 'X (m)' in self.data:
-        #    self.xsweep = self.data['X (m)']
-        #if 'Y (m)' in self.data:
-        #    self.ysweep = self.data['Y (m)']
-        if 'Z (m)' in self.data:
-            self.zsweep = self.data['Z (m)']
-        if 'Z [bwd] (m)' in self.data:
-            self.zsweepb = self.data['Z [bwd] (m)']
-        if 'SRX (V)' in self.data:
-            self.conductance = self.data['SRX (V)']
-            self.conductanceColumn = 'SRX (V)'
-        if 'SRY (V)' in self.data:
-            self.sry = self.data['SRY (V)']
-        elif 'SRX [AVG] (V)' in self.data:
-            self.conductance = self.data['SRX [AVG] (V)']
-            self.conductanceColumn = 'SRX [AVG] (V)'
-        elif 'LIX 1 omega (A)' in self.data:
-            self.conductance = self.data['LIX 1 omega (A)']
-            self.conductanceColumn = 'LIX 1 omega (A)'
-        if 'SRX [bwd] (V)' in self.data:
-            self.conductanceb = self.data['SRX [bwd] (V)']
-            self.conductancebColumn = 'SRX [bwd] (V)'
-        if 'SRY [bwd] (V)' in self.data:
-            self.sryb = self.data['SRY [bwd] (V)']
-        if 'SRX2nd [AVG] (V)' in self.data:
-            self.harmonic = self.data['SRX2nd [AVG] (V)']
-        elif 'LIX 1 omega [AVG] (A)' in self.data:
-            self.conductance = self.data['LIX 1 omega [AVG] (A)']
-            self.conductanceColumn = 'LIX 1 omega [AVG] (A)'
-        if 'Current (A)' in self.data:
-            self.current = self.data['Current (A)']
-            self.currentColumn = 'Current (A)'
-        elif 'Current [AVG] (A)' in self.data:
-            self.current = self.data['Current [AVG] (A)']
-            self.currentColumn = 'Current [AVG] (A)'
-        if 'Current [bwd] (A)' in self.data:
-            self.currentb = self.data['Current [bwd] (A)']
-            self.currentbColumn = 'Current [bwd] (A)'
-        if 'X (m)' in self.header:
-            self.x = float(self.header['X (m)'])
-        if 'Y (m)' in self.header:
-            self.y = float(self.header['Y (m)'])
-        if 'Z (m)' in self.header:
-            self.z = float(self.header['Z (m)'])
-        if 'Lock-In Signal (V)' in self.data:
-            self.conductance = self.data['Lock-In Signal (V)']
-        if 'Ext. VI 1>7270 Modulation (V)' in self.header:
-            self.modamp = float(self.header['Ext. VI 1>7270 Modulation (V)'])
-        if 'Ext. VI 1>7270 Sensitivity (V)' in self.header:
-            self.sens = float(self.header['Ext. VI 1>7270 Sensitivity (V)' ])
-        if 'Current>Gain' in self.header:
-            self.gain = 10**float(self.header['Current>Gain'][-1])
-        if 'Bias>Calibration (V/V)' in self.header:
-            self.biascal = float(self.header['Bias>Calibration (V/V)'])
-#        if self.header['Date']:
-#            self.date = parse(self.header['Date'])
+        self.name = self.filename.split("/")[-1]
+
+        for hdrline in self.header: #add header lines as attributes
+            hdrname=hdrline
+            hdrname=hdrname.replace(" ", "")
+            hdrname=hdrname.replace("(", "_")
+            hdrname=hdrname.replace(")", "")
+            hdrname=hdrname.replace("/", "")
+            hdrname=hdrname.replace(".", "")
+            hdrname=hdrname.replace("-", "")
+            hdrname=hdrname[(hdrname.find(">")+1):]
+            setattr(self,hdrname,self.header[hdrline])
+            
+        for dataline in self.data: #add data columns as attributes
+            dataname=dataline
+            dataname=dataname.replace(" ", "")
+            dataname=dataname.replace("[", "")
+            dataname=dataname.replace("]", "")
+            dataname=dataname.replace("(", "_")
+            dataname=dataname.replace(")", "")
+            setattr(self,dataname,self.data[dataline])
+            
+        try: #for convenience
+            self.conductance=self.SRX_V #ext LI
+        except:
+            self.conductance=self.LIX1omega_A #int LI
 
     def biasOffset(self, offset):
         self.data['Bias calc (V)'] = self.data['Bias calc (V)']-offset
@@ -374,11 +330,9 @@ class biasSpectroscopy():
         conductanceCut = self.conductance[index[0]:index[1]]
         avg = mean(conductanceCut)
         self.conductance[:] = self.conductance[:]/avg
-    #def currentOffset(self, offset):
-    #    self.data[self.currentColumn] = self.data[self.currentColumn]-offset
 
     def conductanceOffset(self, offset):
-        self.data[self.conductanceColumn] = self.data[self.conductanceColumn]-offset
+        self.conductance += -offset
     
     def energyFind(self, energy):
         index = (abs(self.bias - energy)).idxmin()
@@ -395,16 +349,6 @@ class biasSpectroscopy():
     def biasCalibration(self):
         self.bias = self.bias*1.0312
 
-    #def currDiff(self):
-    #    currDiff = -gradient(self.current)
-    #    return corrConductance
-
-    #def currNormalize(self, energy):
-    #    index = self.energyFind(energy)
-    #    corrConductance = currDiff()
-    #    currDiffnorm = currDiff/currDiff[index]
-    #    return currDiffnorm
-
     def linearize(self, factor):
         difference = abs(self.bias[1]-self.bias[0])
         dummy = []
@@ -416,10 +360,12 @@ class biasSpectroscopy():
         interp = interpolate.interp1d(self.bias, self.conductance)
         self.conductanceLin = interp(self.biasLin)
 
+    ##### Deconvolution #####
+
     def find_nearest(self,array,value):
         idx = (np.abs(array-value)).argmin()
         return idx
-    ##### Deconvolution #####
+    
     def sum_data(self,bias,conductance,x_min,x_max): #to extend the range of the data before deconvolution 
         #a=data[data==x_min].index[0]
         #b=data[data==x_max].index[0]
@@ -597,8 +543,6 @@ class linescan():
         # normalize
         for i in range(0,self.conductance_dec.shape[0]):
             self.conductance_dec[i,:] = self.conductance_dec[i,:]/self.conductance_dec[i,abs(self.bias_dec-normalizeE).argmin()]
-
-
 
 class Zapproach():
         def __init__(self):
