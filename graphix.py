@@ -80,6 +80,7 @@ class lineProfile():
             self.draw()
         if self.LStype == '3ds': #checks if we load a 3ds files instead of ascii files
             self.linescan = nanonis.linescan3ds()
+            print('ciao')
             self.linescan.load(filenames)
             self.axMap.set_title(self.linescan.name)
             self.vmin = self.linescan.conductance.min()
