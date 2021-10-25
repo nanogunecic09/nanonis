@@ -610,6 +610,7 @@ class Zapproach():
             dummyCu = []
             dummyNa = []
             dummyR = []
+            dummyI0 = []
             dummyOff = []
             spectra.load(files[0])
             self.bias = spectra.bias
@@ -620,6 +621,8 @@ class Zapproach():
                 dummyNa.append(spectra.name)
                 dummyR.append(spectra.bias[0]/spectra.current[0])
                 dummyOff.append(float(spectra.header['Bias Spectroscopy>Z offset (m)']))
+                dummyI0.append(spectra.current[0])
+            self.I0 = array(dummyI0)
             self.conductance = fliplr(array(dummyCo))
             self.current = array(dummyCu)
             self.name = array(dummyNa)

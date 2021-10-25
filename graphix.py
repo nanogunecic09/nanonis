@@ -636,14 +636,26 @@ class LScut():
 
 class Zapproach(nanonis.Zapproach):
 
-    def __init__(self,vmin=0, vmax=4,influence='off',range=0,plugins='on'):
+    def __init__(self,vmin=0, vmax=4,influence='off',rangecut=0,plugins='on'):
         self.vmax = vmax
         self.vmin = vmin
-        self.range = range
+        self.rangecut = rangecut
         self.colormap = 'YlGnBu_r'
         self.influence = influence
+        self.plugins = plugins
+        pass
+
+    def draw(self):
+        self.im1 = self.axMap.imshow(np.fliplr(self.conductance), aspect='auto', extent=self.extent,cmap = self.colormap, interpolation='nearest', vmin=self.vmin, vmax=self.vmax)
+
+    def mapload(self,fnames):
+        self.load(fnames)
+
+    
+    def normalize_range(self,E_range):
+        #initialize figure
         self.figure = plt.figure(figsize = (5,3))
-        if plugins=='on':
+        if self.plugins=='on':
             self.figure.subplots_adjust(bottom=0.3)
             grid = gs.GridSpec(2, 1, height_ratios=[2, 1])
             self.axMap = self.figure.add_subplot(grid[0])
@@ -657,18 +669,11 @@ class Zapproach(nanonis.Zapproach):
             self.smax = Slider(self.axmax, 'Max', -4, 8, valinit =4)
             self.smin.on_changed(self.update)
             self.smax.on_changed(self.update)
-        if plugins=='off':
+        if self.plugins=='off':
             self.axMap = self.figure.add_subplot(111)
-        self.figure.show()
 
-    def draw(self):
-        self.im1 = self.axMap.imshow(np.fliplr(self.conductance), aspect='auto', extent=self.extent,cmap = self.colormap, interpolation='nearest', vmin=self.vmin, vmax=self.vmax)
-
-    def mapload(self,fnames):
-        self.load(fnames)
-
-    
-    def normalize_range(self,E_range):
+        
+        #load map
         self.normalizeRange(E_range)
         self.extent = [min(self.bias*1e3), max(self.bias*1e3), min(self.resistance), max(self.resistance)]
 
@@ -677,6 +682,15 @@ class Zapproach(nanonis.Zapproach):
         self.axMap.cla()
         self.draw()
 
+    def cascade_plot(self,E_range,step):
+        plt.rcParams["axes.prop_cycle"] = plt.cycler("color", plt.cm.viridis(np.linspace(0,1,self.conductance.shape[0])))
+        self.figure, self.ax = plt.subplots(1)
+        self.normalizeRange(E_range)
+        count = 0
+        for i in range(0,self.conductance.shape[0]):
+            self.ax.plot(self.bias*1e3,self.conductance[i,:]+count*step)
+            count += 1
+        plt.rcParams["axes.prop_cycle"] = plt.cycler("color", plt.cm.tab10(np.linspace(0,1,10)))
 
     def mapClick(self,event):
         if event.inaxes == self.axMap:
@@ -702,8 +716,8 @@ class Zapproach(nanonis.Zapproach):
     
         #calculate the index based on the range given and the energy
         id_c = (abs(self.bias-energy)).argmin()
-        id_n = (abs(self.bias-energy-self.range)).argmin()
-        id_p = (abs(self.bias-energy+self.range)).argmin()
+        id_n = (abs(self.bias-energy-self.rangecut)).argmin()
+        id_p = (abs(self.bias-energy+self.rangecut)).argmin()
         print(id_c,id_n,id_p)
         self.conductance_avg = LSinfluence_avg(id_c,id_n,id_p)
         if id_n == id_p:
@@ -746,7 +760,7 @@ class grid():
     def explorer(self):
         self.figure = plt.figure(figsize=(6,6))
         self.axMap = self.figure.add_subplot(1,1,1)
-        self.figure.subplots_adjust(bottom=0.3)
+        self.figure.subplots_adjust(bottom=0.35)
         self.ax1 = self.figure.add_axes([0.20, 0.10, 0.65, 0.03])
         self.ax2 = self.figure.add_axes([0.20, 0.15, 0.65, 0.03])
         self.ax3 = self.figure.add_axes([0.20, 0.20, 0.65, 0.03])
@@ -757,7 +771,15 @@ class grid():
         self.energyCut_slider.on_changed(self.update_energy)
         self.smin_slider.on_changed(self.update_cscale)
         self.smax_slider.on_changed(self.update_cscale)
-        self.im1 = self.axMap.imshow(self.conductance,extent=[0,self.gridraw.xrange,0,self.gridraw.yrange],interpolation=None,cmap=self.cmap)
+        self.im1 = self.axMap.imshow(self.conductance,extent=[0,self.gridraw.xrange,0,self.gridraw.yrange],interpolation='nearest',cmap=self.cmap)
+        
+        #energy label 
+        self.label = self.axMap.text(self.gridraw.xrange/10,self.gridraw.xrange/10,'0 mV',color='white')
+
+        #axis labels
+        self.axMap.set_xlabel('x (nm)')
+        self.axMap.set_ylabel('y (nm)')
+
 
     def multicut(self,energies,vmins=None,vmaxs=None): #plot multiple grid cuts given the energies
         gsize = np.int(np.sqrt(len(energies)))
@@ -813,6 +835,8 @@ class grid():
         self.cutIdx = (abs(self.gridraw.bias-val*1e-3)).argmin()
         self.conductance = np.flipud(self.gridraw.data['SRX (V)'][:,:,self.cutIdx])
         self.im1.set_data(self.conductance)
+        self.im1.set_clim(np.min(self.conductance),np.max(self.conductance))
+        self.label.set_text('{} mV'.format(np.round(val,2)))
         self.figure.canvas.draw()
 
     def update_cscale(self,val):
