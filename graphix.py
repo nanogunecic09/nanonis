@@ -78,10 +78,12 @@ class lineProfile():
             plt.subplots_adjust(hspace=0.35)
             self.extent = [min(self.linescan.bias*1e3), max(self.linescan.bias*1e3), min(self.linescan.distance), max(self.linescan.distance)]
             self.draw()
-        if self.LStype == '3ds' == 1: #checks if we load a 3ds files instead of ascii files
+        if self.LStype == '3ds': #checks if we load a 3ds files instead of ascii files
             self.linescan = nanonis.linescan3ds()
-            self.linescan.load(filenames[0])
+            self.linescan.load(filenames)
             self.axMap.set_title(self.linescan.name)
+            self.vmin = self.linescan.conductance.min()
+            self.vmax = self.linescan.conductance.max()
             self.cmin = self.linescan.conductance.min()
             self.cmax = self.linescan.conductance.max()
             self.axMap.set_ylabel("Distance (nm)")

@@ -703,9 +703,9 @@ class linescan3ds():
     def load(self, filename):
         self.data, self.header, self.parameters, self.multiline, MLS = read3DS(filename)
         self.length = self.header['X Length (nm)']
-        self.distance = linspace(0,self.length,num=self.data['Input 3_DAC3_dIdV IN7 (V)'].shape[1])
-        self.bias = flip(linspace(self.parameters['Sweep Start'][0][0]*1e3,self.parameters['Sweep End'][0][0]*1e3,num=self.data['Input 3_DAC3_dIdV IN7 (V)'].shape[2]))
-        self.conductance = self.data['Input 3_DAC3_dIdV IN7 (V)'][0,:,:]
+        self.distance = linspace(0,self.length,num=self.header['# Points'])
+        self.bias = flip(linspace(self.parameters['Sweep Start'][0][0]*1e3,self.parameters['Sweep End'][0][0]*1e3,num=self.header['# Points']))
+        self.conductance = self.data['LIX 1 omega (A)'][0,:,:]
         self.name = filename.split("/")
 
 
