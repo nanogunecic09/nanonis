@@ -79,7 +79,7 @@ class lineProfile():
             self.extent = [min(self.linescan.bias*1e3), max(self.linescan.bias*1e3), min(self.linescan.distance), max(self.linescan.distance)]
             self.draw()
         if self.LStype == '3ds': #checks if we load a 3ds files instead of ascii files
-            self.linescan = nanonis.linescan3ds()
+            self.linescan = nanonis.linescan3ds()g
             self.linescan.load(filenames)
             self.axMap.set_title(self.linescan.name)
             self.vmin = self.linescan.conductance.min()
