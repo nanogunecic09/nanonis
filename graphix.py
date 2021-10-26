@@ -29,18 +29,16 @@ from lmfit import Model
 # LStype change allows to load different LS formats. Can be: 'normal', the conventional set of .dat files, 'wsxm' a txt file with a LS extracted from WSXM, .3ds a linescan saved in binary.
 class lineProfile():
 
-    def __init__(self, vmin=0, vmax=4,influence='off',range=0,plugins='on',cutMode='line',flipud='off',noline='off',LStype='normal'): # vmin/vmax colourscale, cut=True enables vertical cuts
+    def __init__(self,influence='off',range=0,plugins='on',cutMode='line',flipud='off',LStype='normal'): # vmin/vmax colourscale, cut=True enables vertical cuts
+        #import the settings
         self.cutMode = cutMode
         self.LStype = LStype
-        self.vmax = vmax
-        self.vmin = vmin
         self.range = range
         self.colormap = 'YlGnBu_r'
         self.influence = influence
         self.flipud= flipud
-        self.noline = noline
         self.figure = plt.figure(figsize = (5,3))
-        if plugins=='on':
+        if plugins=='on': # enables the cmap changes 
             self.figure.subplots_adjust(bottom=0.3)
             grid = gs.GridSpec(2, 1, height_ratios=[2, 1])
             self.axMap = self.figure.add_subplot(grid[0])
@@ -59,12 +57,8 @@ class lineProfile():
         self.figure.show()
 
     def draw(self):
-        if self.flipud=='on':
-            self.im1 = self.axMap.imshow(np.flipud(np.fliplr(self.linescan.conductance)), aspect='auto', extent=self.extent,cmap = self.colormap, interpolation='nearest', vmin=self.vmin, vmax=self.vmax)
-        elif self.noline == 'on':
-            self.im1 = self.axMap.imshow(np.fliplr(self.linescan.conductance), aspect='auto',cmap = self.colormap, interpolation='nearest', vmin=self.vmin, vmax=self.vmax)
-        else:
-            self.im1 = self.axMap.imshow(np.fliplr(self.linescan.conductance), aspect='auto', extent=self.extent,cmap = self.colormap, interpolation='nearest', vmin=self.vmin, vmax=self.vmax)
+
+        self.im1 = self.axMap.imshow(np.fliplr(self.linescan.conductance), aspect='auto', extent=self.extent,cmap = self.colormap, interpolation='nearest', vmin=self.vmin, vmax=self.vmax)
 
     def mapLoad(self,filenames,distance=None): # distance is the path of the distance file for wsxm LS type
         if self.LStype == 'normal': #for linescans recorded in series of .dat files
@@ -73,10 +67,14 @@ class lineProfile():
             self.axMap.set_title(self.linescan.name[0]+' - '+self.linescan.name[-1], fontweight='bold')
             self.cmin = self.linescan.conductance.min()
             self.cmax = self.linescan.conductance.max()
+            self.vmin = self.linescan.conductance.min()
+            self.vmax = self.linescan.conductance.max()
             self.axMap.set_ylabel("Distance (nm)")
             self.axMap.set_xlabel("Bias (mV)")
             plt.subplots_adjust(hspace=0.35)
             self.extent = [min(self.linescan.bias*1e3), max(self.linescan.bias*1e3), min(self.linescan.distance), max(self.linescan.distance)]
+            if self.flipud=='on':
+                self.linescan.conductance = np.flipud(self.linescan.conductance)
             self.draw()
         if self.LStype == '3ds': #checks if we load a 3ds files instead of ascii files
             self.linescan = nanonis.linescan3ds()
@@ -98,6 +96,8 @@ class lineProfile():
             self.axMap.set_title(filenames)
             self.cmin = self.linescan.conductance.min()
             self.cmax = self.linescan.conductance.max()
+            self.vmin = self.linescan.conductance.min()
+            self.vmax = self.linescan.conductance.max()
             self.axMap.set_ylabel("Distance (nm)")
             self.axMap.set_xlabel("Bias (mV)")
             plt.subplots_adjust(hspace=0.35)
