@@ -29,14 +29,18 @@ from lmfit import Model
 # LStype change allows to load different LS formats. Can be: 'normal', the conventional set of .dat files, 'wsxm' a txt file with a LS extracted from WSXM, .3ds a linescan saved in binary.
 class lineProfile():
 
-    def __init__(self,influence='off',range=0,plugins='on',cutMode='line',flipud='off',LStype='normal'): # vmin/vmax colourscale, cut=True enables vertical cuts
-        #import the settings
+    def __init__(self,spac=0,categorical='python',plotmode='cmap',influence='off',range=0,plugins='on',cutMode='line',flipud='off',LStype='normal'): # vmin/vmax colourscale, cut=True enables vertical cuts
+        #import the settings for the cmap plotting
         self.cutMode = cutMode
         self.LStype = LStype
         self.range = range
         self.colormap = 'YlGnBu_r'
         self.influence = influence
         self.flipud= flipud
+        #import settings for cascade plotting
+        self.plotmode, self.spac, self.categorical = plotmode,spac, categorical
+
+
         self.figure = plt.figure(figsize = (5,3))
         if plugins=='on': # enables the cmap changes 
             self.figure.subplots_adjust(bottom=0.3)
@@ -57,8 +61,14 @@ class lineProfile():
         self.figure.show()
 
     def draw(self):
-
-        self.im1 = self.axMap.imshow(np.fliplr(self.linescan.conductance), aspect='auto', extent=self.extent,cmap = self.colormap, interpolation='nearest', vmin=self.vmin, vmax=self.vmax)
+        if self.plotmode == 'cmap':
+            self.im1 = self.axMap.imshow(np.fliplr(self.linescan.conductance), aspect='auto', extent=self.extent,cmap = self.colormap, interpolation='nearest', vmin=self.vmin, vmax=self.vmax)
+        if self.plotmode == 'cascade':
+            if self.categorical == 'viridis':
+                N = self.linescan.conductance.shape[0]
+                plt.rcParams["axes.prop_cycle"] = plt.cycler("color", plt.cm.viridis(np.linspace(0,1,N)))
+            for i in range(0,N):
+                self.axMap.plot(self.linescan.bias*1e3,self.linescan.conductance[i,:]+i*self.spac)
 
     def mapLoad(self,filenames,distance=None): # distance is the path of the distance file for wsxm LS type
         if self.LStype == 'normal': #for linescans recorded in series of .dat files
