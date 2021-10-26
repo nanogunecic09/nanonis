@@ -816,9 +816,9 @@ class grid():
             self.axMap.get_yaxis().set_visible(False)
             #colorbar
             if count == 1 or count == 5 or count == 9:
-                axin1 = inset_axes(self.axMap, width='100%', height='15%', loc='upper left',bbox_to_anchor=(-0.04,0.04,0.995,1), bbox_transform=self.axMap.transAxes)
+                axin1 = self.axMap.inset_axes(self.axMap, width='100%', height='15%', loc='upper left',bbox_to_anchor=(-0.04,0.04,0.995,1), bbox_transform=self.axMap.transAxes)
             else:
-                axin1 = inset_axes(self.axMap, width='100%', height='15%', loc='upper left',bbox_to_anchor=(-0.04,0.04,1,1), bbox_transform=self.axMap.transAxes)
+                axin1 = self.axMap.inset_axes(self.axMap, width='100%', height='15%', loc='upper left',bbox_to_anchor=(-0.04,0.04,1,1), bbox_transform=self.axMap.transAxes)
                 
             axin1.get_xaxis().set_visible(False)
             axin1.get_yaxis().set_visible(False)
