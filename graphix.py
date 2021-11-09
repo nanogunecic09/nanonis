@@ -201,11 +201,8 @@ class lineProfile():
         self.figure.canvas.draw_idle()
 
     def cutPlot(self, energy):
-        print(energy)
         id = (abs(self.linescan.bias-energy)).argmin()
-        print(id)
         self.axMap.plot([self.linescan.bias[id]*1e3,self.linescan.bias[id]*1e3],[self.linescan.distance[0],self.linescan.distance[-1]])
-        print(self.linescan.bias[id])
         self.axCut.plot(self.linescan.distance, self.linescan.conductance[:,id], label=str(round(self.linescan.bias[id]*1e3,2)))
         self.axCut.legend()
         self.saveCSV(self.linescan.distance, self.linescan.conductance[:,id])
@@ -223,17 +220,14 @@ class lineProfile():
                 LSconductance_avg = LSconductance_avg/len(idxs)
             return LSconductance_avg
         
-        bias = np.linspace(self.linescan.bias[0], self.linescan.bias[-1],len(self.linescan.bias))
         #calculate the index based on the range given and the energy
-        id_c = (abs(bias-energy)).argmin()
-        id_n = (abs(bias-energy-self.range)).argmin()
-        id_p = (abs(bias-energy+self.range)).argmin()
+        id_c = (abs(self.linescan.bias-energy)).argmin()
+        id_n = (abs(self.linescan.bias-energy+self.range)).argmin()
+        id_p = (abs(self.linescan.bias-energy-self.range)).argmin()
+        
         self.conductance_avg = LSinfluence_avg(id_c,id_n,id_p)
-        if id_n == id_p:
-            self.axMap.plot([self.linescan.bias[id_c]*1e3,self.linescan.bias[id_c]*1e3],[self.linescan.distance[0],self.linescan.distance[-1]])
-        else:
-            self.axMap.fill_between([self.linescan.bias[id_n]*1e3,self.linescan.bias[id_p]*1e3],self.linescan.distance[0],self.linescan.distance[-1],alpha=0.6)
-        self.axCut.plot(self.linescan.distance,self.conductance_avg,label=str(round(self.linescan.bias[id_c]*1e3,3)))
+        self.axMap.fill_between([self.linescan.bias[id_n]*1e3,self.linescan.bias[id_p]*1e3],self.linescan.distance[0],self.linescan.distance[-1],alpha=0.6)
+        self.axCut.plot(self.linescan.distance,self.conductance_avg,label=str(round(self.linescan.bias[id_c]*1e3,4)))
         self.axCut.legend()
         self.saveCSV(self.linescan.distance, self.conductance_avg)
         self.figure.canvas.draw_idle()
@@ -409,7 +403,6 @@ class map():
                 self.map = self.map-np.min(self.map)
                 self.axMap.imshow(self.map*1e9, extent=[0, file.xrange, 0, file.yrange], interpolation='mitchell', cmap=colormap)
                 break
-        return self.map
 
     def resetClick(self, event):
         self.axCut.cla()
@@ -418,7 +411,7 @@ class map():
         fft = np.fft.fft2(self.map)
         fft = fft+np.rot90(np.rot90(fft))
         fft = abs(np.fft.fftshift(fft))
-        self.axCut.imshow(fft, cmap='magma_r')
+        self.axCut.imshow(fft, cmap='magma_r',vmax=10e-8)
 
 class lineprofileCuts():
     def __init__(self,directory,delimiter=None):
@@ -694,15 +687,22 @@ class Zapproach(nanonis.Zapproach):
         self.axMap.cla()
         self.draw()
 
-    def cascade_plot(self,E_range,step):
+    def cascade_plot(self,E_range,step,channel='didv'):
         plt.rcParams["axes.prop_cycle"] = plt.cycler("color", plt.cm.viridis(np.linspace(0,1,self.conductance.shape[0])))
         self.figure, self.ax = plt.subplots(1)
-        self.normalizeRange(E_range)
+        
         count = 0
-        for i in range(0,self.conductance.shape[0]):
-            self.ax.plot(self.bias*1e3,self.conductance[i,:]+count*step)
-            count += 1
+        if channel == 'didv':
+            self.normalizeRange(E_range)
+            for i in range(0,self.conductance.shape[0]):
+                self.ax.plot(self.bias*1e3,self.conductance[i,:]+count*step)
+                count += 1
+        elif channel == 'current':
+            for i in range(0,self.current.shape[0]):
+                self.ax.plot(self.bias*1e3,self.current[i,:]/self.current[i,0]+count*step)
+                count += 1
         plt.rcParams["axes.prop_cycle"] = plt.cycler("color", plt.cm.tab10(np.linspace(0,1,10)))
+
 
     def mapClick(self,event):
         if event.inaxes == self.axMap:
@@ -855,6 +855,37 @@ class grid():
         self.im1.set_clim([self.smin_slider.val,self.smax_slider.val])
         self.figure.canvas.draw()
 
+
+class sliderImage():
+    def __init__(self) -> None:
+        pass
+
+    def load(self,map):
+        self.map = map
+
+    def plot(self,slim=None,valinit=None):
+        self.figure = plt.figure(figsize = (5,5))
+        self.figure.subplots_adjust(bottom=0.3)
+        self.axMap = self.figure.add_subplot(111)
+        self.axmin = self.figure.add_axes([0.15, 0.1, 0.65, 0.03])
+        self.axmax = self.figure.add_axes([0.15, 0.15, 0.65, 0.03])
+
+        if slim == None:
+            slim = (np.min(self.map)/2,np.max(self.map)*2)
+            valinit = np.max(self.map)
+        self.smin = Slider(self.axmin, 'Min', slim[0] ,slim[1] , valinit =valinit)
+        self.smax = Slider(self.axmax, 'Max', slim[0] ,slim[1] , valinit =valinit)
+        self.smin.on_changed(self.update)
+        self.smax.on_changed(self.update)
+
+        self.im1 = self.axMap.imshow(self.map,vmin=slim[0],vmax=slim[1],aspect='auto',interpolation='nearest',cmap='Blues')
+
+
+
+    def update(self, val): #for the color scale sliders
+        self.im1.set_clim([self.smin.val,self.smax.val])
+        self.figure.canvas.draw()
+
 class ZapproachMilano():
 
     def __init__(self):
@@ -876,9 +907,9 @@ def set_labels_didv(axs):
     if type(axs) == type(np.zeros(2)):
         for ax in axs:
             ax.set_xlabel('Bias (mV)')
-            ax.set_ylabel('dI/dV (arb. units)')
+            ax.set_ylabel('dI/dV (a.u.)')
     else:
         axs.set_xlabel('Bias (mV)')
-        axs.set_ylabel('dI/dV (arb. units)')
+        axs.set_ylabel('dI/dV (a.u.)')
 
 

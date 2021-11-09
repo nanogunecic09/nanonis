@@ -461,30 +461,6 @@ class biasSpectroscopy():
         conductance=conductance.append(d)
         return [bias,conductance]
 
-    def dynesDeconvolute(self, gap=1.30e-3, temperature=1.248, dynesParameter=40e-6, energyR=6E-3, spacing=50e-6,x_min=-3.0E-3,x_max=3.0E-3,N=1000, window=15,order=3,n=10000):
-        bias_new=self.extensions(self.bias,self.conductance,x_min,x_max,N)[0]
-        conductance_n=self.extensions(self.bias,self.conductance,x_min,x_max,N)[1]
-        conductance_new=savgol_filter(conductance_n,window,order)
-        x=np.linspace(min(bias_new),max(bias_new),n)
-        f2 = interp1d(bias_new, conductance_new, kind='cubic') 
-        self.dec_bias = np.arange(-energyR,energyR, spacing)
-
-        M_E, M_eV = np.meshgrid(self.dec_bias,x)
-        M_N = dynes_curve(M_E,gap,dynesParameter)
-        M_NV = dynes_curve(M_E+M_eV,gap,dynesParameter)
-        M_dNV = dynes_curve_diff(M_E+M_eV,gap,dynesParameter)
-
-        M_f = fermiDirac(M_E, temperature)
-        M_fV = fermiDirac(M_E+M_eV, temperature)
-        M_dfV = fermiDirac_diff(M_E+M_eV, temperature)
-        M_g = M_dNV*(M_f-M_fV) - M_NV*M_dfV
-        M_g_pinv = np.linalg.pinv(M_g)
-        self.dec_conductance = np.dot(M_g_pinv,f2(x))
-        return
-
-    def deconvNormalizeTo(self,energy):
-        index = (abs(self.dec_bias - energy*1e-3)).argmin()
-        self.dec_conductance = self.dec_conductance/self.dec_conductance[index]
 
 class linescan():
 
@@ -605,29 +581,33 @@ class Zapproach():
             self.type = 'Linescan'
 
         def load(self, files):
-            spectra = biasSpectroscopy()
+            self.spectra = biasSpectroscopy()
             dummyCo = []
             dummyCu = []
             dummyNa = []
             dummyR = []
             dummyI0 = []
             dummyOff = []
-            spectra.load(files[0])
-            self.bias = spectra.bias
+            dummyZ = []
+            self.spectra.load(files[0])
+            self.bias = self.spectra.bias
+            self.z0 = float(self.spectra.header['Z (m)'])
             for i in files:
-                spectra.load(i)
-                dummyCo.append(spectra.conductance)
-                dummyCu.append(spectra.current)
-                dummyNa.append(spectra.name)
-                dummyR.append(spectra.bias[0]/spectra.current[0])
-                dummyOff.append(float(spectra.header['Bias Spectroscopy>Z offset (m)']))
-                dummyI0.append(spectra.current[0])
+                self.spectra.load(i)
+                dummyCo.append(self.spectra.conductance)
+                dummyCu.append(self.spectra.current)
+                dummyNa.append(self.spectra.name)
+                dummyR.append(self.spectra.bias[0]/self.spectra.current[0])
+                dummyOff.append(float(self.spectra.header['Bias Spectroscopy>Z offset (m)']))
+                dummyZ.append(float(self.spectra.header['Z (m)'])-self.z0)
+                dummyI0.append(self.spectra.current[0])
             self.I0 = array(dummyI0)
             self.conductance = fliplr(array(dummyCo))
             self.current = array(dummyCu)
             self.name = array(dummyNa)
             self.resistance = array(dummyR)
             self.Zoff = array(dummyOff)
+            self.Z = array(dummyZ)
 
 
         def distanceOffset(self, offset):

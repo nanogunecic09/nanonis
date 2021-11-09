@@ -486,7 +486,8 @@ class simulation(Green):
         self.figure = plt.figure(figsize = (5,5))
         self.figure.subplots_adjust(bottom=0.3)
         self.axMap = self.figure.add_subplot(111)
-
+        extent=None
+        aspect=None
         if type == 'xyMap':
             extent = [self.x[0],self.x[-1],self.y[0],self.y[-1]]
             aspect = None
@@ -525,7 +526,7 @@ class simulation(Green):
             aspect = 'auto'
             A = np.fliplr(np.rot90(self.map))
 
-        self.im1 = self.axMap.imshow(A/np.max(A),extent=extent,aspect=aspect,interpolation='nearest',cmap='Blues')
+        self.im1 = self.axMap.imshow(A,extent=extent,aspect=aspect,interpolation='nearest',cmap='Blues')
         if slider == 'on':
 
             self.axmin = self.figure.add_axes([0.15, 0.1, 0.65, 0.03])
