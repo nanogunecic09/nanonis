@@ -540,6 +540,7 @@ class linescan():
 
     def normalizeTo(self, energy):
         index = self.energyFind(energy)
+        print(index)
         for i in range(len(self.name)):
             self.conductance[i][:] = self.conductance[i][:]/self.conductance[i][index]
 
@@ -583,6 +584,7 @@ class linescan():
         for i in range(self.conductance.shape[0]):
             self.bias_dec, self.conductance_dec[i,:] = deconv.dynesDeconvolute_nof(self.bias,self.conductance[i,:],gap, temperature, dynesParameter, energyR, spacing,x_min,x_max,N)
         # normalize
+        self.bias_dec = np.flip(self.bias_dec)
         for i in range(0,self.conductance_dec.shape[0]):
             self.conductance_dec[i,:] = self.conductance_dec[i,:]/self.conductance_dec[i,abs(self.bias_dec-normalizeE).argmin()]
 
@@ -591,6 +593,7 @@ class linescan():
         self.conductance_dec = np.zeros((20,int(math.ceil(energyR*2/spacing))))
         for i in range(self.conductance.shape[0]):
             self.bias_dec, self.conductance_dec[i,:] = deconv.dynesDeconvolute(self.bias,self.conductance[i,:],gap, temperature, dynesParameter, energyR, spacing,x_min,x_max,N, window,order,n)
+        self.bias_dec = np.flip(self.bias_dec)
         # normalize
         for i in range(0,self.conductance_dec.shape[0]):
             self.conductance_dec[i,:] = self.conductance_dec[i,:]/self.conductance_dec[i,abs(self.bias_dec-normalizeE).argmin()]
@@ -607,9 +610,10 @@ class Zapproach():
             dummyCu = []
             dummyNa = []
             dummyR = []
+            dummyI0 = []
             dummyOff = []
             spectra.load(files[0])
-            self.bias = flip(array(spectra.bias))
+            self.bias = spectra.bias
             for i in files:
                 spectra.load(i)
                 dummyCo.append(spectra.conductance)
@@ -617,6 +621,8 @@ class Zapproach():
                 dummyNa.append(spectra.name)
                 dummyR.append(spectra.bias[0]/spectra.current[0])
                 dummyOff.append(float(spectra.header['Bias Spectroscopy>Z offset (m)']))
+                dummyI0.append(spectra.current[0])
+            self.I0 = array(dummyI0)
             self.conductance = fliplr(array(dummyCo))
             self.current = array(dummyCu)
             self.name = array(dummyNa)
@@ -653,8 +659,8 @@ class Zapproach():
 
         def normalizeRange(self, E_range): #normalize data given an energy range
             index = []
-            index.append(self.energyFind(E_range[0]))
             index.append(self.energyFind(E_range[1]))
+            index.append(self.energyFind(E_range[0]))
             for i in range(len(self.name)):
                 conductanceCut = self.conductance[i][index[0]:index[1]]
                 avg = mean(conductanceCut)
@@ -697,9 +703,9 @@ class linescan3ds():
     def load(self, filename):
         self.data, self.header, self.parameters, self.multiline, MLS = read3DS(filename)
         self.length = self.header['X Length (nm)']
-        self.distance = linspace(0,self.length,num=self.data['Input 3_DAC3_dIdV IN7 (V)'].shape[1])
-        self.bias = flip(linspace(self.parameters['Sweep Start'][0][0]*1e3,self.parameters['Sweep End'][0][0]*1e3,num=self.data['Input 3_DAC3_dIdV IN7 (V)'].shape[2]))
-        self.conductance = self.data['Input 3_DAC3_dIdV IN7 (V)'][0,:,:]
+        self.distance = linspace(0,self.length,num=self.header['# Points'])
+        self.bias = flip(linspace(self.parameters['Sweep Start'][0][0]*1e3,self.parameters['Sweep End'][0][0]*1e3,num=self.header['# Points']))
+        self.conductance = self.data['LIX 1 omega (A)'][0,:,:]
         self.name = filename.split("/")
 
 

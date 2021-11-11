@@ -63,8 +63,18 @@ def specTodf(filenames):
         spectra.load(filename)
         if count == 0:
             data[0]=spectra.bias*1e3
-        data[count+1]=spectra.conductance
+            count += 1
+            continue
+        data[count]=spectra.conductance
         count+=1
+    return data
+
+def arrayTodf(bias,conductance):
+    data = pd.DataFrame()
+    count = 0
+    data[0]=bias*1e3
+    for i in range(0,conductance.shape[0]):
+        data[i+1]=conductance[i,:]
     return data
 ###################################################################
 ################ FUNCTIONS DEFINITIONS #############################
@@ -99,8 +109,8 @@ def fitFunc1g_lin(x,y,center,sigma): #1 gaussian with parabolic background
     params['center'].set(center)
     params['amplitude'].set(1,min=0)
     params['sigma'].set(sigma)
-    params['bkg_c0'].set(2)
-    params['bkg_c1'].set(0)
+    params['bkg_c0'].set(1)
+    params['bkg_c1'].set(1)
     params['bkg_c2'].set(0,vary=False)
     result=model.fit(y,params,x=x)
     return result
