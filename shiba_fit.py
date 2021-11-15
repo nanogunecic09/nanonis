@@ -85,7 +85,7 @@ def fitFunc1g_const(x,y,center,sigma): #1 gaussian with constant background
     params['center'].set(center)
     params['amplitude'].set(1,min=0)
     params['sigma'].set(sigma)
-    params['sigma'].set(vary=True)
+    params['sigma'].set(vary=True,max=0.1)
     params['bkg_c'].set(2)
     result=model.fit(y,params,x=x)
     return result
