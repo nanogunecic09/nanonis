@@ -3,7 +3,7 @@ import distributions
 import nanonis
 import scipy.signal as signal
 from lmfit.models import VoigtModel
-
+from scipy import constants as const
 import matplotlib.pyplot as plt
 
 def filterG(data, points=40, p=0.5, sigma=10):
@@ -85,3 +85,8 @@ def rotatePoint(point, angle):
 	y = point[0]*np.sin(np.deg2rad(angle))+point[1]*np.cos(np.deg2rad(angle))
 	newPoint = [x,y]
 	return  newPoint
+
+def coherence(x,D,Delta,T):
+	a = np.exp(-x/(np.sqrt(const.hbar*D/(Delta*const.e))))
+	b = np.exp(-x/(np.sqrt(const.hbar*D/(2*np.pi*const.k*T))))
+	return a*b

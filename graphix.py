@@ -29,7 +29,7 @@ from lmfit import Model
 # LStype change allows to load different LS formats. Can be: 'normal', the conventional set of .dat files, 'wsxm' a txt file with a LS extracted from WSXM, .3ds a linescan saved in binary.
 class lineProfile():
 
-    def __init__(self,spac=0,categorical='python',plotmode='cmap',influence='off',range=0,plugins='on',cutMode='line',flipud='off',LStype='normal'): # vmin/vmax colourscale, cut=True enables vertical cuts
+    def __init__(self,spac=0,categorical='python',plotmode='cmap',influence='off',range=0.1e-3,plugins='on',cutMode='line',flipud='off',LStype='normal'): # vmin/vmax colourscale, cut=True enables vertical cuts
         #import the settings for the cmap plotting
         self.cutMode = cutMode
         self.LStype = LStype
@@ -222,14 +222,13 @@ class lineProfile():
         
         #calculate the index based on the range given and the energy
         id_c = (abs(self.linescan.bias-energy)).argmin()
-        id_n = (abs(self.linescan.bias-energy+self.range)).argmin()
-        id_p = (abs(self.linescan.bias-energy-self.range)).argmin()
-        
+        id_n = (abs(self.linescan.bias-energy-self.range)).argmin()
+        id_p = (abs(self.linescan.bias-energy+self.range)).argmin()
         self.conductance_avg = LSinfluence_avg(id_c,id_n,id_p)
         self.axMap.fill_between([self.linescan.bias[id_n]*1e3,self.linescan.bias[id_p]*1e3],self.linescan.distance[0],self.linescan.distance[-1],alpha=0.6)
         self.axCut.plot(self.linescan.distance,self.conductance_avg,label=str(round(self.linescan.bias[id_c]*1e3,4)))
         self.axCut.legend()
-        self.saveCSV(self.linescan.distance, self.conductance_avg)
+        # self.saveCSV(self.linesan.distance, self.conductance_avg)
         self.figure.canvas.draw_idle()
          
     def saveCSV(self, array1,array2):
