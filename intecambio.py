@@ -79,7 +79,7 @@ def energyCalc(Del,D,J1,U,En):
             y.append(0)
         w0,v0=np.linalg.eigh(M(Del,D,J1[i],U)[0])
         w1,v1=np.linalg.eigh(M(Del,D,J1[i],U)[1])
-        for j in range(len(w0)):
+        for j in range(4):
             temp1=np.dot(v1[:,j],np.dot(cpup,v0[:,0]))
             if np.abs(temp1)>0.0001:
                 y=np.add(y,peak(En,0.01,w1[j]-min(w0),thermal(min(w0),min(w1),min(w0))))
