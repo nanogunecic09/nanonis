@@ -71,7 +71,7 @@ Deff = D*(1-c*J1**2)
 
 
 def energyCalc(Del,D,J1,p,E,En):
-    peakn = 5
+    peakn = 10
     #initialize the array
     w0,v0=np.linalg.eigh(M(Del,D[0],J1[0],E,p)[0])
     w1,v1=np.linalg.eigh(M(Del,D[0],J1[0],E,p)[1])
