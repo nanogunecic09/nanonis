@@ -64,14 +64,14 @@ En = np.linspace(-1,3,1000)
 
 
 D=0.7
-E=0.05
+E=0
 c = 0
 Deff = D*(1-c*J1**2)
 
 
 
 def energyCalc(Del,D,J1,p,E,En):
-    peakn = 10
+    peakn = 6
     #initialize the array
     w0,v0=np.linalg.eigh(M(Del,D[0],J1[0],E,p)[0])
     w1,v1=np.linalg.eigh(M(Del,D[0],J1[0],E,p)[1])
@@ -105,7 +105,7 @@ for i in frm2:
 map80 = nanonis.linescan()
 map80.load(filenames80)
 #map80.hand_normalization('hand_norm80.txt')
-#map80.biasCalibration(cal)
+map80.biasCalibration(cal)
 map80.conductance = np.roll(map80.conductance,-1,1)
 
 #tp subpress ingap conductance

@@ -540,6 +540,7 @@ class linescan():
 
     def normalizeTo(self, energy):
         index = self.energyFind(energy)
+        print(index)
         for i in range(len(self.name)):
             self.conductance[i][:] = self.conductance[i][:]/self.conductance[i][index]
 
@@ -547,7 +548,6 @@ class linescan():
         index = []
         index.append(self.energyFind(-E_range[0]))
         index.append(self.energyFind(-E_range[1]))
-        print(index)
         for i in range(len(self.name)):
             conductanceCut = self.conductance[i][index[0]:index[1]]
             avg = mean(conductanceCut)
@@ -559,14 +559,47 @@ class linescan():
         for i in range(len(self.name)):
             self.conductance[i][:] = self.conductance[i][:]/values[i]
     
+    def normalizeRange_posneg(self,negE_range,posE_range):
+
+        index = []
+        index.append(self.energyFind(-negE_range[0]))
+        index.append(self.energyFind(-negE_range[1]))
+        zero_idx = self.energyFind(0)
+        for i in range(len(self.name)):
+            conductanceCut = self.conductance[i][index[0]:index[1]]
+            avg = mean(conductanceCut)
+            self.conductance[i][0:zero_idx] = self.conductance[i][0:zero_idx]/avg
+
+        index = []
+        index.append(self.energyFind(-posE_range[0]))
+        index.append(self.energyFind(-posE_range[1]))
+        for i in range(len(self.name)):
+            conductanceCut = self.conductance[i][index[0]:index[1]]
+            avg = mean(conductanceCut)
+            self.conductance[i][zero_idx:] = self.conductance[i][zero_idx:]/avg
+    def biasCalibration(self,cal):
+        self.bias = self.bias*cal
+    ### Perform deconvolution extending the spectra with N point
+    def deconvolution_nof(self,gap=1.37e-3, temperature=1.3, dynesParameter=40e-6, energyR=8e-3, spacing=35e-6,x_min=-4E-3,x_max=4E-3,N=300,normalizeE = 3e-3):
+        self.conductance_dec = np.zeros((self.distance.shape[0],int(math.ceil(energyR*2/spacing))))
+        for i in range(self.conductance.shape[0]):
+            self.bias_dec, self.conductance_dec[i,:] = deconv.dynesDeconvolute_nof(self.bias,self.conductance[i,:],gap, temperature, dynesParameter, energyR, spacing,x_min,x_max,N)
+        # normalize
+        self.bias_dec = np.flip(self.bias_dec)
+        for i in range(0,self.conductance_dec.shape[0]):
+            self.conductance_dec[i,:] = self.conductance_dec[i,:]/self.conductance_dec[i,abs(self.bias_dec-normalizeE).argmin()]
+
     ### Perform deconvolution extending the spectra with N point and applying a Savitzky–Golay filter to the data
     def deconvolution(self,gap=1.37e-3, temperature=1.3, dynesParameter=40e-6, energyR=8e-3, spacing=35e-6,x_min=-4E-3,x_max=4E-3,N=300, window=15,order=2,n=2000,normalizeE = 3e-3):
         self.conductance_dec = np.zeros((20,int(math.ceil(energyR*2/spacing))))
         for i in range(self.conductance.shape[0]):
             self.bias_dec, self.conductance_dec[i,:] = deconv.dynesDeconvolute(self.bias,self.conductance[i,:],gap, temperature, dynesParameter, energyR, spacing,x_min,x_max,N, window,order,n)
+        self.bias_dec = np.flip(self.bias_dec)
         # normalize
         for i in range(0,self.conductance_dec.shape[0]):
             self.conductance_dec[i,:] = self.conductance_dec[i,:]/self.conductance_dec[i,abs(self.bias_dec-normalizeE).argmin()]
+
+
 
 class Zapproach():
         def __init__(self):
