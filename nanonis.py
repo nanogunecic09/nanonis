@@ -498,6 +498,10 @@ class linescan():
     def biasOffset(self, offset):
         self.bias = self.bias-offset
 
+    def biasOffset_full(self,offset):
+        self.bias = self.bias-offset
+        
+
     def positionFind(self, position):
         index = (abs(self.distance - position)).argmin()
         return index

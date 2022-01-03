@@ -1,168 +1,140 @@
-import numpy as np
-import matplotlib.pyplot as plt
-
-
-def M(Del,D,J,E):
-    Mat1=[[(25/4)*D + (5/4)*J, 0, np.sqrt(10)*E, 0, 0, 0, 0, 0, 0, 0, 0, 0], 
-    [0, (9/4)*D + (3/4)*J, 0, 3*np.sqrt(2)*E, 0, 0, (J/2)*np.sqrt(5), 0, 0, 0, 0, 0],
-    [np.sqrt(10)*E, 0, (1/4)*D + (1/4)*J, 0, 3*np.sqrt(2)*E, 0, 0, J*np.sqrt(2), 0, 0, 0, 0], 
-    [0, 3*np.sqrt(2)*E, 0, (1/4)*D - (1/4)*J, 0, np.sqrt(10)*E, 0, 0, (J/2)*3, 0, 0, 0], 
-    [0, 0, 3*np.sqrt(2)*E, 0, (9/4)*D - (3/4)*J, 0, 0, 0, 0, J*np.sqrt(2), 0, 0], 
-    [0, 0, 0, np.sqrt(10)*E, 0, (25/4)*D - (5/4)*J, 0, 0, 0, 0, (J/2)*np.sqrt(5), 0], 
-    [0, (J/2)*np.sqrt(5), 0, 0, 0, 0, (25/4)*D - (5/4)*J, 0, np.sqrt(10)*E, 0, 0, 0], 
-    [0, 0, J*np.sqrt(2), 0, 0, 0, 0, (9/4)*D - (3/4)*J, 0, 3*np.sqrt(2)*E, 0, 0], 
-    [0, 0, 0, (3*J/2), 0, 0, np.sqrt(10)*E, 0, (1/4)*D - (1/4)*J, 0, 3*np.sqrt(2)*E, 0], 
-    [0, 0, 0, 0, J*np.sqrt(2), 0, 0, 3*np.sqrt(2)*E, 0, (1/4)*D + (1/4)*J, 0, np.sqrt(10)*E], 
-    [0, 0, 0, 0, 0, (J/2)*np.sqrt(5), 0, 0, 3*np.sqrt(2)*E, 0, (9/4)*D + (3/4)*J, 0], 
-    [0, 0, 0, 0, 0, 0, 0, 0, 0, np.sqrt(10)*E, 0, (25/4)*D + (5/4)*J]]
-    Mat0=[[(25/4)*D, 0, np.sqrt(10)*E, 0, 0, 0, Del, 0, 0, 0, 0, 0], 
-    [0, (9/4)*D, 0, 3*np.sqrt(2)*E, 0, 0, 0, Del, 0, 0, 0, 0], 
-    [np.sqrt(10)*E, 0, (1/4)*D, 0, 3*np.sqrt(2)*E, 0, 0, 0, Del, 0, 0, 0], 
-    [0, 3*np.sqrt(2)*E, 0, (1/4)*D, 0, np.sqrt(10)*E, 0, 0, 0, Del, 0, 0], 
-    [0, 0, 3*np.sqrt(2)*E, 0, (9/4)*D, 0, 0, 0, 0, 0, Del, 0], 
-    [0, 0, 0, np.sqrt(10)*E, 0, (25/4)*D, 0, 0, 0, 0, 0, Del], 
-    [Del, 0, 0, 0, 0, 0, (25/4)*D, 0, np.sqrt(10)*E, 0, 0, 0], 
-    [0, Del, 0, 0, 0, 0, 0, (9/4)*D, 0, 3*np.sqrt(2)*E, 0, 0], 
-    [0, 0, Del, 0, 0, 0, np.sqrt(10)*E, 0, (1/4)*D, 0, 3*np.sqrt(2)*E, 0], 
-    [0, 0, 0, Del, 0, 0, 0, 3*np.sqrt(2)*E, 0, (1/4)*D, 0, np.sqrt(10)*E], 
-    [0, 0, 0, 0, Del, 0, 0, 0, 3*np.sqrt(2)*E, 0, (9/4)*D, 0], 
-    [0, 0, 0, 0, 0, Del, 0, 0, 0, np.sqrt(10)*E, 0, (25/4)*D]]
-    return [Mat0,Mat1]
-
-    
-def peak(En,Gamma,DeltaE,w):
-    return w*np.divide(Gamma,np.add(np.power(np.add(En,-DeltaE),2),Gamma**2/2))
-
-def thermal(E1,E2,E):
-    beta=20
-    a=np.exp(-E1*beta)+np.exp(-E2*beta)
-    return np.exp(-E*beta)/a
-
-cpup=np.kron([[0,1],[0,0]],np.identity(6))
-cpdown01=np.kron([[0,0],[0,1]],np.identity(6))
-cpdown10=np.kron([[1,0],[0,0]],np.identity(6))
-
-
-
 #Material parameters
-Del=0.7
-kJ1 = 1
-cal = 1.0312
-sub_ing = 0.5
-cmap = 'magma'
+Del=1
 Deltat = 0.68
-a = np.array([0.596899091,0.592263,0.599925,0.592789,0.590584,0.597909,0.634405,0.648816,0.673330,0.72108,0.759739,0.781286,0.782148,0.778115,0.762544,0.745005,0.696710,0.652128,0.616709,0.606191,0.593855,0.590836,0.596292,0.606088,0.609632,])
-a = a*cal
-a = a-Deltat
-J1 = kJ1*(Del-a)*4/7
+
+dpx = 100
+epx = 100
+jpx = 100
+
+totpx = dpx + epx + jpx*3
+
+D = np.linspace(0,0.9,dpx)
+E = np.linspace(0,0.044,epx)
+J0 = np.linspace(0,0.05,jpx)
+J1 = np.linspace(0.05,0.15,jpx)
+J2 = np.linspace(0.15,0.3,jpx)
+p=1
 
 
 
+#initialize the array
 
-En = np.linspace(-1,3,1000)
+w0,v0=np.linalg.eigh(M(Del,D[0],J1[0],E[0],p)[0])
+w1,v1=np.linalg.eigh(M(Del,D[0],J1[0],E[0],p)[1])
 
+e_0 = np.zeros((totpx,len(w0)))*np.NaN
+e_1 = np.zeros((totpx,len(w0)))*np.NaN
 
-D=0.7
-E=0.05
-c = 0
-Deff = D*(1-c*J1**2)
+# calculate diagram
 
+n = 0
 
+for i in J0:
+    w0,v0=np.linalg.eigh(M(Del,D[0],i,E[0],p)[0])
+    w1,v1=np.linalg.eigh(M(Del,D[0],i,E[0],p)[1])
+    for j in range(0,len(w0)):
+        e_0[n,j] = w0[j]
+        e_1[n,j] = w1[j]
+    n += 1
 
-def energyCalc(Del,D,J1,E,En):
-    peakn = 5
-    #initialize the array
-    w0,v0=np.linalg.eigh(M(Del,D[0],J1[0],E)[0])
-    w1,v1=np.linalg.eigh(M(Del,D[0],J1[0],E)[1])
-    peaks_weak = np.zeros((len(J1),peakn))
-    peaks_strong = np.zeros((len(J1),peakn))
-    count = 0
-    for i in range(len(J1)):
-        w0,v0=np.linalg.eigh(M(Del,D[i],J1[i],E)[0])
-        w1,v1=np.linalg.eigh(M(Del,D[i],J1[i],E)[1])
-        for j in range(peakn):
-            peaks_weak[i,j] = w1[j]-min(w0)
-        for j in range(peakn):
-            peaks_strong[i,j] = w0[j]-min(w1)
-    return peaks_weak, peaks_strong
+for i in D:
+    w0,v0=np.linalg.eigh(M(Del,i,J0[-1],E[0],p)[0])
+    w1,v1=np.linalg.eigh(M(Del,i,J0[-1],E[0],p)[1])
+    for j in range(0,len(w0)):
+        e_0[n,j] = w0[j]
+        e_1[n,j] = w1[j]
+    n += 1
 
+for i in J1:
+    w0,v0=np.linalg.eigh(M(Del,D[-1],i,E[0],p)[0])
+    w1,v1=np.linalg.eigh(M(Del,D[-1],i,E[0],p)[1])
+    for j in range(0,len(w0)):
+        e_0[n,j] = w0[j]
+        e_1[n,j] = w1[j]
 
-
-f1, ax = plt.subplots()
-plt.subplots_adjust(bottom=0.4)
-
-
-#LINESCAN PLOT
-filenames80 = []
-frm1 = np.linspace(80,99,20)
-frm2 = np.linspace(100,104,5)
-for i in frm1:
-    filenames80.append('C:/Users/strivini/OneDrive - Asociacion Cic Nanogune/STM_Stefano/V(001)/2020-08-10 - FeTPP on Au_V(100)/2020-08-21 - SC tip n3/CS04200823_0{}.dat'.format(int(i)))
-for i in frm2:
-    filenames80.append('C:/Users/strivini/OneDrive - Asociacion Cic Nanogune/STM_Stefano/V(001)/2020-08-10 - FeTPP on Au_V(100)/2020-08-21 - SC tip n3/CS04200823_{}.dat'.format(int(i)))
-
-map80 = nanonis.linescan()
-map80.load(filenames80)
-map80.hand_normalization('hand_norm80.txt')
-map80.biasCalibration(cal)
-map80.conductance = np.roll(map80.conductance,-1,1)
-
-#tp subpress ingap conductance
-
-map80.conductance[:,72:227] = map80.conductance[:,72:227]*sub_ing
-
-ax.imshow(np.fliplr(map80.conductance),aspect='auto',extent=[min(map80.bias*1e3),max(map80.bias*1e3),min(map80.distance),max(map80.distance)],cmap = cmap,interpolation='nearest',vmin=-0.21,vmax=1)
+    n += 1
 
 
+for i in E:
+    w0,v0=np.linalg.eigh(M(Del,D[-1],J1[-1],i,p)[0])
+    w1,v1=np.linalg.eigh(M(Del,D[-1],J1[-1],i,p)[1])
+    for j in range(0,len(w0)):
+        e_0[n,j] = w0[j]
+        e_1[n,j] = w1[j]
+    n += 1
 
-peaks_weak, peaks_strong = energyCalc(Del,Deff,J1,E,En)
+for i in J2:
+    w0,v0=np.linalg.eigh(M(Del,D[-1],i,E[-1],p)[0])
+    w1,v1=np.linalg.eigh(M(Del,D[-1],i,E[-1],p)[1])
+    for j in range(0,len(w0)):
+        e_0[n,j] = w0[j]
+        e_1[n,j] = w1[j]
+    n += 1
 
-for i in range(0,peaks_weak.shape[1]):
-    ax.plot(Deltat+peaks_weak[:,i],   map80.distance,color='C3')
-    ax.plot(Deltat+peaks_strong[:,i], map80.distance,color='C2')
-    ax.plot(-Deltat-peaks_weak[:,i] , map80.distance,color='C3')
-    ax.plot(-Deltat-peaks_strong[:,i],map80.distance,color='C2')
+#figure setup
 
-# ax.set_xlim(map80.bias[0]*1e3,map80.bias[-1]*1e3)
-
-# # sliders
-
-ac = f1.add_axes([0.1, 0.1, 0.65, 0.03])
-aD = f1.add_axes([0.1, 0.15, 0.65, 0.03])
-# akJ1 = f1.add_axes([0.1, 0.10, 0.65, 0.03])
-aE = f1.add_axes([0.1, 0.05, 0.65, 0.03])
-
-
-
-
- 
-c = plt.Slider(ac,'c',-2,2,valinit=0)
-D = plt.Slider(aD, 'D', 0, 5, valinit =0.7)
-# kJ1 = plt.Slider(akJ1, 'J1', -2, 2, valinit =1)
-E = plt.Slider(aE, 'E', -0.1, 0.1, valinit =0.05)
+plt.rcParams.update({'font.size': 12})
+cm = 1/2.54
+f = plt.figure(figsize=(10.5*cm,7*cm))
+ax = []
+gs1 = GridSpec(1, 5,width_ratios=[1,1,1,1,2],wspace=0)
+ax.append(f.add_subplot(gs1[0,0]))
+ax.append(f.add_subplot(gs1[0,1]))
+ax.append(f.add_subplot(gs1[0,2]))
+ax.append(f.add_subplot(gs1[0,3]))
+ax.append(f.add_subplot(gs1[0,4]))
 
 
-def update(val):
-    ax.clear()
-    #calculate effective D
-    Deff = D.val*(1-c.val*J1**2)
-    Deltat = 0.68
-    a = np.array([0.596899091,0.592263,0.599925,0.592789,0.590584,0.597909,0.634405,0.648816,0.673330,0.72108,0.759739,0.781286,0.782148,0.778115,0.762544,0.745005,0.696710,0.652128,0.616709,0.606191,0.593855,0.590836,0.596292,0.606088,0.609632,])
-    a = a*1.0312
-    a = a-Deltat
-    b=np.linspace(0,1,len(a))
-    ax.imshow(np.fliplr(map80.conductance),aspect='auto',extent=[min(map80.bias*1e3),max(map80.bias*1e3),min(map80.distance),max(map80.distance)],cmap = cmap,interpolation='nearest',vmin=-0.21,vmax=1)
-    peaks_weak, peaks_strong = energyCalc(Del,Deff,J1,E.val,En)
-    for i in range(0,peaks_weak.shape[1]):
-        ax.plot(Deltat+peaks_weak[:,i],   map80.distance,color='C3')
-        ax.plot(Deltat+peaks_strong[:,i], map80.distance,color='C2')
-        ax.plot(-Deltat-peaks_weak[:,i] , map80.distance,color='C3')
-        ax.plot(-Deltat-peaks_strong[:,i],map80.distance,color='C2')
-    # ax.set_xlim(map80.bias[0]*1e3,map80.bias[-1]*1e3)
+ax[1].yaxis.set_visible(False)
+ax[2].yaxis.set_visible(False)
+ax[3].yaxis.set_visible(False)
+ax[4].yaxis.set_visible(False)
 
-D.on_changed(update)
-# kJ1.on_changed(update)
-E.on_changed(update)
-c.on_changed(update)
+#plot
 
-# plt.show()
+ax[0].plot(J0,e_0[:100,:len(w0)],color='C0')
+ax[0].plot(J0,e_1[:100,:len(w0)],color='C1')
+ax[1].plot(D,e_0[100:200,:len(w0)],color='C0')
+ax[1].plot(D,e_1[100:200,:len(w0)],color='C1')
+ax[2].plot(J1,e_0[200:300,:len(w0)],color='C0')
+ax[2].plot(J1,e_1[200:300,:len(w0)],color='C1')
+ax[3].plot(E*1e3,e_0[300:400,:len(w0)],color='C0')
+ax[3].plot(E*1e3,e_1[300:400,:len(w0)],color='C1')
+ax[4].plot(J2,e_0[400:500,:len(w0)],color='C0')
+ax[4].plot(J2,e_1[400:500,:len(w0)],color='C1')
+
+
+#graph settings
+
+ax[0].set_xlim(0,J0[-1])
+ax[0].set_xlabel('J '+r'($\Delta$)')
+ax[0].set_ylabel('Energy '+r'($\Delta$)')
+#ax[0].set_xticks([0,0.9])
+
+ax[1].set_xlim(0,D[-1])
+ax[1].set_xlabel('D '+r'($\Delta$)')
+ax[1].set_ylabel('Energy '+r'($\Delta$)')
+ax[1].set_xticks([0,0.9])
+ax[2].set_xlim(J1[0],J1[-1])
+ax[2].xaxis.tick_top()
+ax[2].xaxis.set_label_position('top')
+ax[2].set_xlabel('J '+r'($\Delta$)')
+ax[3].set_xticks([0,np.round(J1[-1],2)])
+ax[3].set_xlim(E[0]*1e3,E[-1]*1e3)
+ax[3].set_xlabel('E '+r'$\cdot10^{-3}(\Delta)$')
+ax[3].set_xticks([0,44])
+ax[4].set_xlim(J2[0],J2[-1])
+ax[4].xaxis.tick_top()
+ax[4].set_xlabel('J '+r'($\Delta$)')
+ax[4].xaxis.set_label_position('top')
+ax[4].set_xticks([np.round(J2[0],2),np.round(J2[-1],2)])
+
+for axn in ax:
+    axn.set_ylim(-1.3,7)
+    axn.tick_params(axis='x',direction='in')
+    axn.tick_params(axis='y',direction='in')
+
+
+plt.tight_layout()
+
+plt.savefig('C:/Users/strivini/Desktop/scheme.pdf',dpi=600)
