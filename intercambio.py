@@ -1,3 +1,49 @@
+import numpy as np
+import matplotlib.pyplot as plt
+import nanonis
+from matplotlib.gridspec import GridSpec
+
+def M(Del,D,J,E,p):
+    Mat1=[[(25/4)*D + (5/4)*J, 0, np.sqrt(10)*E, 0, 0, 0, 0, 0, 0, 0, 0, 0], 
+    [0, (9/4)*D + (3/4)*J, 0, 3*np.sqrt(2)*E, 0, 0, p*(J/2)*np.sqrt(5), 0, 0, 0, 0, 0],
+    [np.sqrt(10)*E, 0, (1/4)*D + (1/4)*J, 0, 3*np.sqrt(2)*E, 0, 0, p*J*np.sqrt(2), 0, 0, 0, 0], 
+    [0, 3*np.sqrt(2)*E, 0, (1/4)*D - (1/4)*J, 0, np.sqrt(10)*E, 0, 0, p*(J/2)*3, 0, 0, 0], 
+    [0, 0, 3*np.sqrt(2)*E, 0, (9/4)*D - (3/4)*J, 0, 0, 0, 0, p*J*np.sqrt(2), 0, 0], 
+    [0, 0, 0, np.sqrt(10)*E, 0, (25/4)*D - (5/4)*J, 0, 0, 0, 0, p*(J/2)*np.sqrt(5), 0], 
+    [0, p*(J/2)*np.sqrt(5), 0, 0, 0, 0, (25/4)*D - (5/4)*J, 0, np.sqrt(10)*E, 0, 0, 0], 
+    [0, 0, p*J*np.sqrt(2), 0, 0, 0, 0, (9/4)*D - (3/4)*J, 0, 3*np.sqrt(2)*E, 0, 0], 
+    [0, 0, 0, p*(3*J/2), 0, 0, np.sqrt(10)*E, 0, (1/4)*D - (1/4)*J, 0, 3*np.sqrt(2)*E, 0], 
+    [0, 0, 0, 0, p*J*np.sqrt(2), 0, 0, 3*np.sqrt(2)*E, 0, (1/4)*D + (1/4)*J, 0, np.sqrt(10)*E], 
+    [0, 0, 0, 0, 0, p*(J/2)*np.sqrt(5), 0, 0, 3*np.sqrt(2)*E, 0, (9/4)*D + (3/4)*J, 0], 
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, np.sqrt(10)*E, 0, (25/4)*D + (5/4)*J]]
+    
+    Mat0=[[(25/4)*D, 0, np.sqrt(10)*E, 0, 0, 0, Del, 0, 0, 0, 0, 0], 
+    [0, (9/4)*D, 0, 3*np.sqrt(2)*E, 0, 0, 0, Del, 0, 0, 0, 0], 
+    [np.sqrt(10)*E, 0, (1/4)*D, 0, 3*np.sqrt(2)*E, 0, 0, 0, Del, 0, 0, 0], 
+    [0, 3*np.sqrt(2)*E, 0, (1/4)*D, 0, np.sqrt(10)*E, 0, 0, 0, Del, 0, 0], 
+    [0, 0, 3*np.sqrt(2)*E, 0, (9/4)*D, 0, 0, 0, 0, 0, Del, 0], 
+    [0, 0, 0, np.sqrt(10)*E, 0, (25/4)*D, 0, 0, 0, 0, 0, Del], 
+    [Del, 0, 0, 0, 0, 0, (25/4)*D, 0, np.sqrt(10)*E, 0, 0, 0], 
+    [0, Del, 0, 0, 0, 0, 0, (9/4)*D, 0, 3*np.sqrt(2)*E, 0, 0], 
+    [0, 0, Del, 0, 0, 0, np.sqrt(10)*E, 0, (1/4)*D, 0, 3*np.sqrt(2)*E, 0], 
+    [0, 0, 0, Del, 0, 0, 0, 3*np.sqrt(2)*E, 0, (1/4)*D, 0, np.sqrt(10)*E], 
+    [0, 0, 0, 0, Del, 0, 0, 0, 3*np.sqrt(2)*E, 0, (9/4)*D, 0], 
+    [0, 0, 0, 0, 0, Del, 0, 0, 0, np.sqrt(10)*E, 0, (25/4)*D]]
+    return [Mat0,Mat1]
+
+    
+def peak(En,Gamma,DeltaE,w):
+    return w*np.divide(Gamma,np.add(np.power(np.add(En,-DeltaE),2),Gamma**2/2))
+
+def thermal(E1,E2,E):
+    beta=20
+    a=np.exp(-E1*beta)+np.exp(-E2*beta)
+    return np.exp(-E*beta)/a
+
+cpup=np.kron([[0,1],[0,0]],np.identity(6))
+cpdown01=np.kron([[0,0],[0,1]],np.identity(6))
+cpdown10=np.kron([[1,0],[0,0]],np.identity(6))
+
 #Material parameters
 Del=1
 Deltat = 0.68
