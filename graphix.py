@@ -650,7 +650,7 @@ class Zapproach(nanonis.Zapproach):
         pass
 
     def draw(self):
-        self.im1 = self.axMap.imshow(np.fliplr(self.conductance), aspect='auto', extent=self.extent,cmap = self.colormap, interpolation='nearest', vmin=self.vmin, vmax=self.vmax)
+        self.im1 = self.axMap.imshow(self.conductance, aspect='auto', extent=self.extent,cmap = self.colormap, interpolation='nearest', vmin=self.vmin, vmax=self.vmax)
 
     def mapload(self,fnames):
         self.load(fnames)

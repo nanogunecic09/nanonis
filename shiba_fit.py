@@ -29,7 +29,7 @@ colour_code =cc.glasbey_category10
 #You can use it if you want to follow a peak shifting across different spectra.
 # How to:
 #1) gather filenames in a filenames list
-#2) convert them with dataTodf(filenames) procedure
+#2) convert them with specTodf(filenames) procedure
 #3) use one of the fit_plot type of functions. Input all the parameters and the fit will be executed.
 #4) the output is a list of fit output (lmfit style), you can extract than the parameters you need with one of the extract functions.
 ##########################################
@@ -63,7 +63,8 @@ def specTodf(filenames):
         spectra.load(filename)
         if count == 0:
             data[0]=spectra.bias*1e3
-            count += 1
+            data[1]=spectra.conductance
+            count += 2
             continue
         data[count]=spectra.conductance
         count+=1
@@ -158,25 +159,26 @@ def fitFunc2g_const(x,y,c_out,c_in,sigma): #2 gaussians with constant background
     result=model.fit(y,params,x=x)
     return result
 
-def fitFunc2l_const(x,y,c_out,c_in,sigma): #2 gaussians with constant background
+def fitFunc2l_const(x,y,c_out,c_in,sigma): #2 lorentzian with constant background
     model = LorentzianModel(prefix='out_')+ LorentzianModel(prefix='in_') + PolynomialModel(1)
-    
     params = model.make_params()
     ## Initialize parameters peak1
     params['out_center'].set(c_out)
     params['out_amplitude'].set(3, min=0)
-    params['out_sigma'].set(sigma)
-    params['out_sigma'].set(vary=True)
+    params['out_sigma'].set(sigma[0])
+    params['out_sigma'].set(vary=False)
     ## Initialize parameters peak2
     params['in_center'].set(c_in)
     params['in_amplitude'].set(3, min=0)
-    params['in_sigma'].set(sigma)
-    params['in_sigma'].set(vary=True)
+    params['in_sigma'].set(sigma[1])
+    params['in_sigma'].set(vary=False)
     ## Initialize parameters constant baseline
     params['c0'].set(2)
     params['c1'].set(2)
     result=model.fit(y,params,x=x)
     return result
+    
+
 ####################################################################################################
 ######################### FUNCTIONS TO PERFORM AND PLOT THE FIT ####################################
 ####################################################################################################
@@ -251,7 +253,7 @@ def fit_plot_Einput(data,energy, interval,sigma,spac,para,plotype):
 ### interval energy range you want to fit centered in centralE
 
 
-#fit with 2 gaussian with linear or parabolic background returning all parameters
+#fit with 2 gaussian or lorentzian with linear or parabolic background returning all parameters
 def fit_plot2gfull(data,centralE,c_out,c_in, interval,sigma,spac,plotype='fullPlot',plotGauss=True,plotfit=True,background='gauss_constant'):
     fig, ax = plt.subplots(1,figsize=[10,5])
     i=0
@@ -298,6 +300,7 @@ def fit_plot2gfull(data,centralE,c_out,c_in, interval,sigma,spac,plotype='fullPl
             fit_res.params['in_center'].stderr = 0
         multifit.append(fit_res.params)
     return multifit
+
 
 
 ####################################################################################################

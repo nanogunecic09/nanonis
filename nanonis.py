@@ -281,7 +281,7 @@ class simpleScan():
             self.mpenergies = mparameters['Energy (eV)']
         if 'Setpoint' in mparameters:
             self.mpsetpoint = mparameters['Setpoint']
-            
+        
     
     #Define the real position in scan space.
     #The corners of the square are defined as
@@ -420,46 +420,19 @@ class biasSpectroscopy():
         idx = (np.abs(array-value)).argmin()
         return idx
     ##### Deconvolution #####
-    def sum_data(self,bias,conductance,x_min,x_max): #to extend the range of the data before deconvolution 
-        #a=data[data==x_min].index[0]
-        #b=data[data==x_max].index[0]
-        a=self.find_nearest(bias,x_min)
-        b=self.find_nearest(bias,x_max)
-        mean1=0.0
-        mean2=0.0
-        for i in range(0,b):
-            mean1=mean1+conductance[i]
-        for i in range(a,len(bias)):
-            mean2=mean2+conductance[i]
+    def dynesDeconvolute(self,gap=1.30e-3, temperature=1.248, dynesParameter=40e-6, energyR=6E-3, spacing=50e-6,x_min=-3.0E-3,x_max=3.0E-3,N=1000, window=3,order=1,n=1000):
+        self.bias_dec, self.conductance_dec = deconv.dynesDeconvolute(self.bias,self.conductance,gap, temperature, dynesParameter, energyR, spacing ,x_min,x_max,N, window,order,n)
+        self.bias_dec = pd.Series(self.bias_dec)
+        self.conductance_dec = pd.Series(self.conductance_dec)
 
-        mean1=mean1/float(b)
-        mean2=mean2/(float(len(bias)-a))
+    def dynesDeconvolute_nof(self,gap=1.25e-3, temperature=1.7, dynesParameter=40E-6, energyR=6E-3, spacing = 56e-6,x_min=-2.0E-3,x_max=2.0E-3,N=1000,):
+        self.bias_dec, self.conductance_dec = deconv.dynesDeconvolute_nof(self.bias,self.conductance, gap, temperature, dynesParameter, energyR, spacing,x_min,x_max,N)
+        self.bias_dec = pd.Series(self.bias_dec)
+        self.conductance_dec = pd.Series(self.conductance_dec)
 
-        return [mean1,mean2]
-
-    def extensions(self,bias,conductance,x_min,x_max,N):
-        sp=bias[1]-bias[0]
-        mean=self.sum_data(bias,conductance,x_min,x_max)
-        a=[bias[0]-sp]
-        b=[bias[len(bias)-1]+sp]
-        c=[mean[0]]
-        d=[mean[1]]
-        for i in range(N):
-            a.insert(0,a[0]-sp)
-            b.append(b[len(b)-1]+sp)
-            c.append(mean[0])
-            d.append(mean[1])
-        a=pd.Series(a)
-        b=pd.Series(b)
-        c=pd.Series(c)
-        d=pd.Series(d)
-        bias=pd.Series(bias)
-        conductance=pd.Series(conductance)
-        bias=a.append(bias)
-        bias=bias.append(b)
-        conductance=c.append(conductance)
-        conductance=conductance.append(d)
-        return [bias,conductance]
+    def dec_normalizeTo(self,energy):
+        index = (abs(self.bias_dec - energy)).idxmin()
+        self.conductance_dec = self.conductance_dec/self.conductance_dec[index]
 
 
 class linescan():
@@ -473,11 +446,12 @@ class linescan():
         dummyCu = []
         dummyNa = []
         dummyR = []
+        dummyZ = []
         spectra.load(files[0])
-        x0,y0 = spectra.x,spectra.y
+        self.x0,self.y0 = spectra.x,spectra.y
         spectra.load(files[-1])
-        x1,y1 = spectra.x,spectra.y
-        self.length = sqrt((x0-x1)**2+(y0-y1)**2)*1e9
+        self.x1,self.y1 = spectra.x,spectra.y
+        self.length = sqrt((self.x0-self.x1)**2+(self.y0-self.y1)**2)*1e9
         self.distance = linspace(self.length,0,len(files))
         self.bias = array(spectra.bias)
         for i in files:
@@ -486,10 +460,13 @@ class linescan():
             dummyCu.append(spectra.current)
             dummyNa.append(spectra.name)
             dummyR.append(spectra.bias[0]/spectra.current[0])
+            dummyZ.append(spectra.z)
         self.conductance = array(dummyCo)
+        self.conductance = np.fliplr(self.conductance)
         self.current = array(dummyCu)
         self.name = array(dummyNa)
         self.resistance = array(dummyR)
+        self.z = array(dummyZ)
 
 
     def distanceOffset(self, offset):
@@ -571,7 +548,7 @@ class linescan():
 
     ### Perform deconvolution extending the spectra with N point and applying a Savitzky–Golay filter to the data
     def deconvolution(self,gap=1.37e-3, temperature=1.3, dynesParameter=40e-6, energyR=8e-3, spacing=35e-6,x_min=-4E-3,x_max=4E-3,N=300, window=15,order=2,n=2000,normalizeE = 3e-3):
-        self.conductance_dec = np.zeros((20,int(math.ceil(energyR*2/spacing))))
+        self.conductance_dec = np.zeros((len(self.distance),int(math.ceil(energyR*2/spacing))))
         for i in range(self.conductance.shape[0]):
             self.bias_dec, self.conductance_dec[i,:] = deconv.dynesDeconvolute(self.bias,self.conductance[i,:],gap, temperature, dynesParameter, energyR, spacing,x_min,x_max,N, window,order,n)
         self.bias_dec = np.flip(self.bias_dec)
