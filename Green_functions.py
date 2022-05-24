@@ -425,7 +425,7 @@ class simulation(Green):
         self.map = self.map/np.max(self.map)
         return
 
-    def GYSRLSCalcSquare(self,J1=-0.0296,J2=-0.0296,alpha=0,delta=0.0000287,m=20.956,pf=0.274,dynes=5e-6,Epx=400,x=(0,457),xypx=500,YSRenergy=0.000020947026906146):
+    def GYSRLSCalcSquare(self,J1=-0.0296,J2=-0.0296,alpha=0,delta=0.0000287,m=20.956,pf=0.274,dynes=5e-6,Epx=400,x=(0,157),xypx=100,YSRenergy=0.000020947026906146,dir='100'):
         #initialize variables
         self.En =np.linspace(0,delta,Epx)
         self.x=np.linspace(x[0],x[1],xypx)
@@ -435,10 +435,16 @@ class simulation(Green):
         count = 0
         for i in self.x:
             self.timing(count,t0)
-            self.G(i,0,YSRenergy+np.complex(0,dynes),delta,m,pf,1)
-            self.dG(i,0,YSRenergy+np.complex(0,dynes),1e10,1e10,J1,J2,alpha,delta,m,pf,1)
-            a=self.deltaG
-            v1.append(-np.imag(a[0][0]+a[1][1]+a[2][2]+a[3][3]))
+            if dir == '100':
+                self.G(i,0,YSRenergy+np.complex(0,dynes),delta,m,pf,1)
+                self.dG(i,0,YSRenergy+np.complex(0,dynes),1e10,1e10,J1,J2,alpha,delta,m,pf,1)
+                a=self.deltaG
+                v1.append(-np.imag(a[0][0]+a[1][1]+a[2][2]+a[3][3]))
+            if dir == '110':
+                self.G(i,i,YSRenergy+np.complex(0,dynes),delta,m,pf,1)
+                self.dG(i,i,YSRenergy+np.complex(0,dynes),1e10,1e10,J1,J2,alpha,delta,m,pf,1)
+                a=self.deltaG
+                v1.append(-np.imag(a[0][0]+a[1][1]+a[2][2]+a[3][3]))
             count += 1
         self.cut = np.array(v1)
         self.cut = self.cut/np.max(self.cut)
