@@ -65,8 +65,8 @@ def DOS(r_,E,theta_,r__,J_,U_,N):
 
 def f(w,j,theta_,r__,U_,N):
     J_=[j]*N
-    rho1=DOS(r__[0],w+20e-7*1j,theta_,r__,J_,U_,N)
-    rho2=DOS(r__[1],w+20e-7*1j,theta_,r__,J_,U_,N)
+    rho1=DOS(r__[0],w+1e-7*1j,theta_,r__,J_,U_,N)
+    rho2=DOS(r__[1],w+1e-7*1j,theta_,r__,J_,U_,N)
     return (rho1[0,0]-rho1[1,1])+np.cos(theta_[1])*(rho2[0,0]-rho2[1,1])+np.sin(theta_[1])*(rho2[0,1]+rho2[1,0]) 
 
 """
@@ -140,16 +140,16 @@ def main(n,n_cores=10):
     y1=[]
     y2=[]
     a=[]
-    with mp.Pool(n_cores) as p:
-        p_map = p.map(_f,theta)
-        y2 = list(p_map)
-
     #with mp.Pool(n_cores) as p:
-    #    p_map = p.map(_f2,theta)
-    #    y1 = list(p_map)
+    #    p_map = p.map(_f,theta)
+    #    y2 = list(p_map)
+
+    with mp.Pool(n_cores) as p:
+        p_map = p.map(_f2,theta)
+        y1 = list(p_map)
     
 
-    return theta,y2
+    return theta,y1
 
 if __name__ == "__main__":
     x,y= main(10)
