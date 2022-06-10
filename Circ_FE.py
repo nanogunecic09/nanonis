@@ -116,7 +116,7 @@ def double_Integral(xmin, xmax, ymin, ymax, nx, ny, A):
 
 def _f2(k):
     delta=0.00078/c
-    x=np.linspace(0,2*delta,20)
+    x=np.linspace(0,1.5*delta,20)
     xx=np.linspace(0,0.03,20)
     y=[]
     print('a')
@@ -125,7 +125,7 @@ def _f2(k):
         for j in xx:
             yy.append(f(i,j,[0,k],[(0.0,0.0),(6.3,0.0)],[0.0,0.0],2))
         y.append(yy)
-    return double_Integral(0,2*delta,0.0,0.03,20,20,np.array(y))
+    return double_Integral(0,1.5*delta,0.0,0.03,20,20,np.array(y))
 
 def _f(k):
     delta=0.00078/c
