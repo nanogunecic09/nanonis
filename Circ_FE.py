@@ -129,7 +129,7 @@ def _f2(k):
 
 def _f(k):
     delta=0.00078/c
-    return integrate.dblquad(f,0.0,2*delta,0.0,0.03,args=([0,k],[(0.0,0.0),(6.3,0.0)],[0.0,0.0],2))[0]
+    return integrate.romberg(lambda w: integrate.quad(lambda j: f(w,j,[0,k],[(0.0,0.0),(6.3,0.0)],[0.0,0.0],2),0,0.03)[0],0,2*delta)
 
 def main(n,n_cores=10):
     theta= np.linspace(0,np.pi,n)
@@ -144,21 +144,16 @@ def main(n,n_cores=10):
         p_map = p.map(_f,theta)
         y2 = list(p_map)
 
-    with mp.Pool(n_cores) as p:
-        p_map = p.map(_f2,theta)
-        y1 = list(p_map)
+    #with mp.Pool(n_cores) as p:
+    #    p_map = p.map(_f2,theta)
+    #    y1 = list(p_map)
     
-    """
-    for k in theta:
-        print(k)
-        y2.append(integrate.dblquad(f,0.0,delta,0.0,0.03,args=([0,k],[(0.0,0.0),(6.3,0.0)],[0.0,0.0],2),epsabs=1e-4)[0])
-    """
 
-    return theta,y1
+    return theta,y2
 
 if __name__ == "__main__":
-    x,y,yy= main(10)
+    x,y= main(10)
     
     plt.plot(x,y)
-    plt.plot(x,yy)
+    #plt.plot(x,yy)
     plt.show()
