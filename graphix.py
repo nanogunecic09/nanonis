@@ -14,7 +14,7 @@ import os
 import pandas as pd
 import colorcet as cc
 from lmfit import Model
-
+from scipy import stats
 
 #added: now the linescans cuts save properly in order
 #       new class for the lineprofile cuts, given a folder with cuts it plot them
@@ -62,7 +62,7 @@ class lineProfile():
 
     def draw(self):
         if self.plotmode == 'cmap':
-            self.im1 = self.axMap.imshow(np.fliplr(self.linescan.conductance), aspect='auto', extent=self.extent,cmap = self.colormap, interpolation='nearest', vmin=self.vmin, vmax=self.vmax)
+            self.im1 = self.axMap.imshow(self.linescan.conductance, aspect='auto', extent=self.extent,cmap = self.colormap, interpolation='nearest', vmin=self.vmin, vmax=self.vmax)
         if self.plotmode == 'cascade':
             if self.categorical == 'viridis':
                 N = self.linescan.conductance.shape[0]
@@ -190,7 +190,10 @@ class lineProfile():
                     self.cutPlot(self.energyCut*1e-3)
                 else:
                     self.energyCut = event.xdata
-                    self.cutPlotRange(self.energyCut*1e-3)            
+                    self.cutPlotRange(self.energyCut*1e-3)
+                    self.distCut = event.ydata
+                    self.points = [[],[]]
+                    self.cutSave(self.energyCut,self.distCut)         
     
     def cutSave(self,energy,distCut): #save the point clicked on the plot and put a dot in the graph
         id = (abs(self.linescan.bias-energy)).argmin()
@@ -198,6 +201,7 @@ class lineProfile():
         self.axMap.scatter(self.linescan.bias[id],self.linescan.distance[id_d])
         self.points[0].append(self.linescan.distance[id_d])
         self.points[1].append(self.linescan.bias[id])
+        self.saveCSV(self.linescan.distance, self.linescan.conductance[:,id])
         self.figure.canvas.draw_idle()
 
     def cutPlot(self, energy):
@@ -210,7 +214,7 @@ class lineProfile():
     
     def cutPlotRange(self, energy):
         def LSinfluence_avg(id_c,id_n,id_p): #return contuctance averaged between different cuts
-            idxs = np.arange(id_n,id_p)
+            idxs = np.arange(id_p,id_n)
             LSconductance_avg = np.zeros(len(self.linescan.conductance))
             if id_n == id_p: #checks that the range is >0
                 LSconductance_avg = self.linescan.conductance[:,id_c]
@@ -763,26 +767,37 @@ class grid():
 
     def __init__(self):
         pass
-    def mapload(self,filename,cmap):
+    def mapload(self,filename,cmap='viridis'):
         self.cmap = cmap
         self.gridraw = nanonis.grid()
         self.gridraw.load(filename)
     
-    def explorer(self):
+    def explorer(self,mirror=False):
+        self.mirror = mirror
         self.figure = plt.figure(figsize=(6,6))
         self.axMap = self.figure.add_subplot(1,1,1)
         self.figure.subplots_adjust(bottom=0.35)
         self.ax1 = self.figure.add_axes([0.20, 0.10, 0.65, 0.03])
         self.ax2 = self.figure.add_axes([0.20, 0.15, 0.65, 0.03])
         self.ax3 = self.figure.add_axes([0.20, 0.20, 0.65, 0.03])
-        self.energyCut_slider = Slider(self.ax1,'Energy cut',self.gridraw.bias[-1]*1e3,self.gridraw.bias[0]*1e3,valinit=0, valstep=(self.gridraw.bias[0]-self.gridraw.bias[1])*1e3)
-        self.smin_slider = Slider(self.ax2, 'Min', -4, 8, valinit =0)
-        self.smax_slider = Slider(self.ax3, 'Max', -4, 8, valinit =4)
-        self.conductance = np.flipud(self.gridraw.data['SRX (V)'][:,:,0])
+        # self.energyCut_slider = Slider(self.ax1,'Energy cut',self.gridraw.bias.min()*1e3,self.gridraw.bias.max()*1e3,valinit=0, valstep=(self.gridraw.bias[0]-self.gridraw.bias[1])*1e3)
+        self.energyCut_slider = Slider(self.ax1,'Energy cut',self.gridraw.bias.min()*1e3,self.gridraw.bias.max()*1e3,valinit=0, valstep=(0.01))
+        if self.mirror == True:
+            if 'LIX 1 omega (A)' in self.gridraw.data:
+                self.conductance = np.flipud(self.gridraw.data['LIX 1 omega (A)'][:,:,0])
+            if 'SRX (V)' in self.gridraw.data:
+                self.conductance = np.flipud(self.gridraw.data['SRX (V)'][:,:,0])
+        else:
+            if 'LIX 1 omega (A)' in self.gridraw.data:
+                self.conductance = self.gridraw.data['LIX 1 omega (A)'][:,:,0]
+            if 'SRX (V)' in self.gridraw.data:
+                self.conductance = self.gridraw.data['SRX (V)'][:,:,0]
+        self.smin_slider = Slider(self.ax2, 'Min', self.conductance.min(), self.conductance.max(), valinit =self.conductance.min())
+        self.smax_slider = Slider(self.ax3, 'Max', self.conductance.min(), self.conductance.max(), valinit =self.conductance.max()*0.5)            
         self.energyCut_slider.on_changed(self.update_energy)
         self.smin_slider.on_changed(self.update_cscale)
         self.smax_slider.on_changed(self.update_cscale)
-        self.im1 = self.axMap.imshow(self.conductance,extent=[0,self.gridraw.xrange,0,self.gridraw.yrange],interpolation='nearest',cmap=self.cmap)
+        self.im1 = self.axMap.imshow(self.conductance,extent=[0,self.gridraw.xrange,0,self.gridraw.yrange],interpolation='nearest',cmap=self.cmap,vmax=0.5,vmin=0)
         
         #energy label 
         self.label = self.axMap.text(self.gridraw.xrange/10,self.gridraw.xrange/10,'0 mV',color='white')
@@ -802,9 +817,9 @@ class grid():
             self.conductance = np.flipud(self.gridraw.data['SRX (V)'][:,:,self.cutIdx])
             self.axMap = self.figure.add_subplot(grid[count])
             if vmaxs == None:
-                self.im1 = self.axMap.imshow(self.conductance,extent=[0,self.gridraw.xrange,0,self.gridraw.yrange],interpolation=None,cmap=self.cmap,vmin=0,vmax=None)
+                self.im1 = self.axMap.imshow(self.conductance,extent=[0,self.gridraw.xrange,0,self.gridraw.yrange],interpolation=None,cmap=self.cmap,vmax=np.mean(self.conductance),vmin=self.conductance.min())
             else:
-                self.im1 = self.axMap.imshow(self.conductance,extent=[0,self.gridraw.xrange,0,self.gridraw.yrange],interpolation=None,cmap=self.cmap,vmin=0,vmax=vmaxs[count])
+                self.im1 = self.axMap.imshow(self.conductance,extent=[0,self.gridraw.xrange,0,self.gridraw.yrange],interpolation=None,cmap=self.cmap,vmax=np.mean(self.conductance),vmin=self.conductance.min())
             count += 1
 
     def multicutFeTPP(self,energies,labels,vmins=None,vmaxs=None): #plot multiple grid cuts given the energies
@@ -839,12 +854,21 @@ class grid():
             axin1.text(0.90,0.40,'',size=12,color='k',transform = axin1.transAxes,ha='center',va="center",weight='bold')
             # label text
             self.axMap.text(0,0.03,labels[count],color='w',size=14,weight='bold',transform = self.axMap.transAxes)
-            self.axMap.text(0.98,0.03,str(np.round(self.gridraw.bias[self.cutIdx]*1e3,2))+'mV',color='w',size=12,weight='bold',transform = self.axMap.transAxes,ha='right')
+            self.axMap.text(0.03,0.03,str(np.round(self.gridraw.bias[self.cutIdx]*1e3,2))+'mV',color='w',size=12,weight='bold',transform = self.axMap.transAxes,ha='left')
             count += 1
 
     def update_energy(self,val):
         self.cutIdx = (abs(self.gridraw.bias-val*1e-3)).argmin()
-        self.conductance = np.flipud(self.gridraw.data['SRX (V)'][:,:,self.cutIdx])
+        if self.mirror == True:
+            if 'LIX 1 omega (A)' in self.gridraw.data:
+                self.conductance = np.flipud(self.gridraw.data['LIX 1 omega (A)'][:,:,self.cutIdx])
+            if 'SRX (V)' in self.gridraw.data:
+                self.conductance = np.flipud(self.gridraw.data['SRX (V)'][:,:,self.cutIdx])
+        else:
+            if 'LIX 1 omega (A)' in self.gridraw.data:
+                self.conductance = self.gridraw.data['LIX 1 omega (A)'][:,:,self.cutIdx]
+            if 'SRX (V)' in self.gridraw.data:
+                self.conductance = self.gridraw.data['SRX (V)'][:,:,self.cutIdx]
         self.im1.set_data(self.conductance)
         self.im1.set_clim(np.min(self.conductance),np.max(self.conductance))
         self.label.set_text('{} mV'.format(np.round(val,2)))
@@ -902,13 +926,68 @@ class ZapproachMilano():
 
 #set the current axes in spectroscopy mode
 
-def set_labels_didv(axs):
-    if type(axs) == type(np.zeros(2)):
-        for ax in axs:
-            ax.set_xlabel('Bias (mV)')
-            ax.set_ylabel('dI/dV (a.u.)')
-    else:
-        axs.set_xlabel('Bias (mV)')
-        axs.set_ylabel('dI/dV (a.u.)')
+class tri_grid():
+#Falta hacer bien el MLS
+    def __init__(self):
+        self.type = 'Grid'
+    
+    def load(self,fnames,triangle_points,square_points,center_x,center_y,width,height,normalizeR=[4e-3,5e-3]):
+        x = np.arange(center_x-width/2,center_x+width/2,1.5)
+        y = np.arange(center_y-width/2,center_y+width/2,1.5)
+        self.tri_grid = np.zeros((x.shape[0],y.shape[0],300))+0
+        self.x = width
+        self.y = height
+        n=0
+        self.spectra = nanonis.biasSpectroscopy()
+        self.spectra.load(fnames[0])
+        self.bias = self.spectra.bias
+        for f in fnames[:-1]:
+            x_idx = np.abs(x-triangle_points[n][0]).argmin()
+            y_idx = np.abs(y-triangle_points[n][1]).argmin()
+            self.spectra.load(f)
+            self.spectra.normalizeRange(normalizeR)
+            self.tri_grid[x_idx,y_idx,:] = self.spectra.conductance
+            n+=1
+        return
+    def explorer(self):
+        self.figure = plt.figure(figsize=(6,6))
+        self.axMap = self.figure.add_subplot(211)
+        self.axSpec = self.figure.add_subplot(212)
+        self.axSpec.margins(0.05)
+        self.axMap.margins(0.05)
+        self.figure.subplots_adjust(bottom=0.35)
+        self.ax1 = self.figure.add_axes([0.20, 0.10, 0.65, 0.03])
+        self.ax2 = self.figure.add_axes([0.20, 0.15, 0.65, 0.03])
+        self.ax3 = self.figure.add_axes([0.20, 0.20, 0.65, 0.03])
+        self.conductance = self.tri_grid[:,:,0]
+        # self.energyCut_slider = Slider(self.ax1,'Energy cut',self.gridraw.bias.min()*1e3,self.gridraw.bias.max()*1e3,valinit=0, valstep=(self.gridraw.bias[0]-self.gridraw.bias[1])*1e3)
+        self.energyCut_slider = Slider(self.ax1,'Energy cut',self.bias.min()*1e3,self.bias.max()*1e3,valinit=0, valstep=(0.01))
+        self.smin_slider = Slider(self.ax2, 'Min', self.conductance.min(), self.conductance.max(), valinit =self.conductance.min())
+        self.smax_slider = Slider(self.ax3, 'Max', self.conductance.min(), self.conductance.max(), valinit =self.conductance.max()*0.5)            
+        self.energyCut_slider.on_changed(self.update_energy)
+        self.smin_slider.on_changed(self.update_cscale)
+        self.smax_slider.on_changed(self.update_cscale)
+        self.im1 = self.axMap.imshow(self.conductance,extent=[0,self.x,0,self.y],interpolation='nearest',cmap='viridis',vmax=0.5,vmin=0)
+        #energy label 
+        self.label = self.axMap.text(self.x/10,self.x/10,'0 mV',color='white')
+        #axis labels
+        self.axMap.set_xlabel('x (nm)')
+        self.axMap.set_ylabel('y (nm)')
+        # plot of the spectra
+        self.axSpec.plot(self.bias*1e3,np.mean(self.tri_grid,axis=(0,1)))
 
 
+    def update_energy(self,val):
+        self.cutIdx = (abs(self.bias-val*1e-3)).argmin()
+        self.conductance = np.flipud(self.tri_grid[:,:,self.cutIdx])
+        self.im1.set_data(self.conductance)
+        self.im1.set_clim(np.min(self.conductance),np.max(self.conductance))
+        self.label.set_text('{} mV'.format(np.round(val,2)))
+        self.figure.canvas.draw()
+        # put index in plot
+        self.axSpec.clear()
+        self.axSpec.plot(self.bias*1e3,np.mean(self.tri_grid,axis=(0,1)))
+        self.axSpec.axvline(val)
+    def update_cscale(self,val):
+        self.im1.set_clim([self.smin_slider.val,self.smax_slider.val])
+        self.figure.canvas.draw()
