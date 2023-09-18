@@ -65,8 +65,8 @@ def DOS(r_,E,theta_,r__,J_,U_,N):
 
 def f(w,j,theta_,r__,U_,N):
     J_=[j]*N
-    rho1=DOS(r__[0],w+1e-7*1j,theta_,r__,J_,U_,N)
-    rho2=DOS(r__[1],w+1e-7*1j,theta_,r__,J_,U_,N)
+    rho1=DOS(r__[0],w+10e-7*1j,theta_,r__,J_,U_,N)
+    rho2=DOS(r__[1],w+10e-7*1j,theta_,r__,J_,U_,N)
     return (rho1[0,0]-rho1[1,1])+np.cos(theta_[1])*(rho2[0,0]-rho2[1,1])+np.sin(theta_[1])*(rho2[0,1]+rho2[1,0]) 
 
 """
@@ -116,8 +116,8 @@ def double_Integral(xmin, xmax, ymin, ymax, nx, ny, A):
 
 def _f2(k):
     delta=0.00078/c
-    x=np.linspace(0,1.5*delta,20)
-    xx=np.linspace(0,0.03,20)
+    x=np.linspace(0,2*delta,50)
+    xx=np.linspace(0,0.1,50)
     y=[]
     print('a')
     for i in x:
@@ -125,7 +125,7 @@ def _f2(k):
         for j in xx:
             yy.append(f(i,j,[0,k],[(0.0,0.0),(6.3,0.0)],[0.0,0.0],2))
         y.append(yy)
-    return double_Integral(0,1.5*delta,0.0,0.03,20,20,np.array(y))
+    return double_Integral(0,2*delta,0.0,0.1,50,50,np.array(y))
 
 def _f(k):
     delta=0.00078/c
