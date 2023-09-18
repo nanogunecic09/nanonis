@@ -1,4 +1,4 @@
-import matplotlib
+import matplotlib as plt
 import os
 import csv
 import numpy as np
@@ -7,11 +7,11 @@ from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 from matplotlib.figure import Figure, Artist
 
-matplotlib.rcParams['lines.linewidth'] = 1.0
-matplotlib.rcParams['font.family'] = 'sans-serif'
-matplotlib.rcParams['font.sans-serif'] = 'Arial'
-matplotlib.rcParams['font.size'] = 10
-matplotlib.use('Qt5Agg')
+plt.rcParams['lines.linewidth'] = 1.0
+plt.rcParams['font.family'] = 'sans-serif'
+plt.rcParams['font.sans-serif'] = 'Arial'
+plt.rcParams['font.size'] = 10
+plt.use('Qt5Agg')
 
 def saveCSV(array1,array2,filename):
     matrix = np.vstack((array1,array2))
@@ -22,6 +22,21 @@ def saveCSV(array1,array2,filename):
         [writer.writerow(r) for r in matrix]
 
 
+class Canvas(FigureCanvas):
+
+    def __init__(self, parent=None, width=7, height =5, dpi=100, tight_layout = False):
+        self.fig = Figure(figsize=(width, height), dpi=dpi)
+        self.fig.subplots_adjust(hspace=.5)
+        self.ax1 = self.fig.add_subplot(211)
+        self.ax2 = self.fig.add_subplot(212)
+
+        FigureCanvas.__init__(self,self.fig)
+        self.setParent(None)
+
+        FigureCanvas.setSizePolicy(self,
+                                   QtWidgets.QSizePolicy.Expanding,
+                                   QtWidgets.QSizePolicy.Expanding)
+        FigureCanvas.updateGeometry(self)
 
 
 
@@ -32,6 +47,8 @@ class MplCanvas(FigureCanvas):
         self.fig.subplots_adjust(hspace=.5)
         self.ax1 = self.fig.add_subplot(211)
         self.ax2 = self.fig.add_subplot(212)
+        x = np.linspace(1,2,10)
+        self.ax2.plot(x,x)
 
         FigureCanvas.__init__(self,self.fig)
         self.setParent(parent)

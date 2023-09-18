@@ -50,17 +50,19 @@ def cutSpec(x,y,center,interval):
     y = y[startidx:endidx]
     return x, y
 def save_obj(obj, name ):
-    with open('obj/'+ name + '.pkl', 'wb') as f:
+    with open(name + '.pkl', 'wb') as f:
         pickle.dump(obj, f, pickle.HIGHEST_PROTOCOL) 
 def load_obj(name ):
-    with open('obj/' + name + '.pkl', 'rb') as f:
+    with open( name + '.pkl', 'rb') as f:
         return pickle.load(f)
 #converts a series of spectra (from filenames) to a dataframe compatible with the fitting modules
-def specTodf(filenames):
+def specTodf(filenames,offset=0,norm=[-3e-3,3e-3]):
     data = pd.DataFrame()
     count = 0
     for filename in filenames:
         spectra.load(filename)
+        spectra.normalizeRange(norm)
+        spectra.biasOffset(offset)
         if count == 0:
             data[0]=spectra.bias*1e3
             data[1]=spectra.conductance
@@ -83,35 +85,34 @@ def arrayTodf(bias,conductance):
 def fitFunc1g_const(x,y,center,sigma): #1 gaussian with constant background
     model = GaussianModel() + ConstantModel(prefix='bkg_')
     params = model.make_params()
-    params['center'].set(center)
-    params['amplitude'].set(1,min=0)
-    params['sigma'].set(sigma)
+    params['center'].set(center,vary=True)
+    params['amplitude'].set(0.1,min=0,vary=True)
+    params['sigma'].set(sigma,vary=True)
     params['sigma'].set(vary=True,max=0.1)
-    params['bkg_c'].set(2)
+    params['bkg_c'].set(0,vary=True)
     result=model.fit(y,params,x=x)
     return result
 
 def fitFunc1g_para(x,y,center,sigma): #1 gaussian with parabolic background
     model = GaussianModel() + PolynomialModel(2,prefix='bkg_')
     params = model.make_params()
-    params['center'].set(center)
-    params['amplitude'].set(1,min=0)
-    params['sigma'].set(sigma)
-    params['sigma'].set(vary=True)
-    params['bkg_c0'].set(2)
-    params['bkg_c1'].set(2)
-    params['bkg_c2'].set(2)
+    params['center'].set(center,vary=True)
+    params['amplitude'].set(0.1,vary=True)
+    params['sigma'].set(sigma,vary=True)
+    params['bkg_c0'].set(0.1,min=0,vary=True)
+    params['bkg_c1'].set(0)
+    params['bkg_c2'].set(0,vary=False)
     result=model.fit(y,params,x=x)
     return result
 
 def fitFunc1g_lin(x,y,center,sigma): #1 gaussian with parabolic background
     model = GaussianModel() + PolynomialModel(2,prefix='bkg_')
     params = model.make_params()
-    params['center'].set(center)
-    params['amplitude'].set(1,min=0)
-    params['sigma'].set(sigma)
-    params['bkg_c0'].set(1)
-    params['bkg_c1'].set(1)
+    params['center'].set(center,vary=True)
+    params['amplitude'].set(0.1,vary=True)
+    params['sigma'].set(sigma,vary=True)
+    params['bkg_c0'].set(0.1,min=0,vary=True)
+    params['bkg_c1'].set(0,min=0,vary=True)
     params['bkg_c2'].set(0,vary=False)
     result=model.fit(y,params,x=x)
     return result

@@ -12,10 +12,10 @@ import colorcet as cc
 import pandas as pd
 from scipy.signal import savgol_filter
 from scipy.interpolate import interp1d
-from superconductor import BCS_curve, dynes_curve, dynes_curve_diff
 from distributions import fermiDirac, fermiDirac_diff
 import deconvolution as deconv
 import math
+import glob
 def readDATDec(filename, datatype):
     if datatype == 'dIdV':
         names = ['Bias', 'Conductance']
@@ -41,6 +41,18 @@ def readGcutLS(didvfile,distancefile):
         dfdata = read_csv(distancefile, sep='\t', header=None)
     distance = dfdata.loc[:,0]
     return conductance, bias, distance
+
+def readWSXMcloud(didvfile):
+    conductance = []
+    bias = []
+    with open(didvfile) as f:
+        dfdata = read_csv(didvfile, sep='\t', header=None)
+
+    bias = dfdata.loc[:,0]
+    conductance = dfdata.loc[:,1:dfdata.shape[1]:2].values
+    conductance = rot90(conductance)
+    conductance = fliplr(conductance)
+    return bias,conductance
 
 def readDAT(filename):
     header = dict()
@@ -249,6 +261,7 @@ class simpleScan():
     def load(self, fname):
         self.data, header, mparameters = readSXM (fname)
         self.filename = fname
+        self.multipass = False
         dummy = self.filename.split("/")
         self.name = dummy[-1] 
         if 'Bias (V)' in header:
@@ -281,6 +294,8 @@ class simpleScan():
             self.mpenergies = mparameters['Energy (eV)']
         if 'Setpoint' in mparameters:
             self.mpsetpoint = mparameters['Setpoint']
+        if ':Multipass-Config:' in header:
+            self.multipass = True
         
     
     #Define the real position in scan space.
@@ -336,6 +351,9 @@ class biasSpectroscopy():
         elif 'LIX 1 omega [AVG] (A)' in self.data:
             self.conductance = self.data['LIX 1 omega [AVG] (A)']
             self.conductanceColumn = 'LIX 1 omega [AVG] (A)'
+        if 'LIX n omega [AVG] (A)' in self.data:
+            self.conductance2 = self.data['LIX n omega [AVG] (A)']
+            self.conductance2Column = 'LIX n omega [AVG] (A)'
         if 'Current (A)' in self.data:
             self.current = self.data['Current (A)']
             self.currentColumn = 'Current (A)'
@@ -422,12 +440,12 @@ class biasSpectroscopy():
     ##### Deconvolution #####
     def dynesDeconvolute(self,gap=1.30e-3, temperature=1.248, dynesParameter=40e-6, energyR=6E-3, spacing=50e-6,x_min=-3.0E-3,x_max=3.0E-3,N=1000, window=3,order=1,n=1000):
         self.bias_dec, self.conductance_dec = deconv.dynesDeconvolute(self.bias,self.conductance,gap, temperature, dynesParameter, energyR, spacing ,x_min,x_max,N, window,order,n)
-        self.bias_dec = pd.Series(self.bias_dec)
+        self.bias_dec = pd.Series(np.flip(self.bias_dec))
         self.conductance_dec = pd.Series(self.conductance_dec)
 
     def dynesDeconvolute_nof(self,gap=1.25e-3, temperature=1.7, dynesParameter=40E-6, energyR=6E-3, spacing = 56e-6,x_min=-2.0E-3,x_max=2.0E-3,N=1000,):
         self.bias_dec, self.conductance_dec = deconv.dynesDeconvolute_nof(self.bias,self.conductance, gap, temperature, dynesParameter, energyR, spacing,x_min,x_max,N)
-        self.bias_dec = pd.Series(self.bias_dec)
+        self.bias_dec = pd.Series(np.flip(self.bias_dec))
         self.conductance_dec = pd.Series(self.conductance_dec)
 
     def dec_normalizeTo(self,energy):
@@ -447,13 +465,14 @@ class linescan():
         dummyNa = []
         dummyR = []
         dummyZ = []
+        dummyTime= []
         spectra.load(files[0])
         self.x0,self.y0 = spectra.x,spectra.y
         spectra.load(files[-1])
         self.x1,self.y1 = spectra.x,spectra.y
         self.length = sqrt((self.x0-self.x1)**2+(self.y0-self.y1)**2)*1e9
         self.distance = linspace(self.length,0,len(files))
-        self.bias = array(spectra.bias)
+        self.bias = np.flip(array(spectra.bias))
         for i in files:
             spectra.load(i)
             dummyCo.append(spectra.conductance)
@@ -461,13 +480,14 @@ class linescan():
             dummyNa.append(spectra.name)
             dummyR.append(spectra.bias[0]/spectra.current[0])
             dummyZ.append(spectra.z)
+            # dummyTime.append(spectra.header['Date'])
         self.conductance = array(dummyCo)
         self.conductance = np.fliplr(self.conductance)
         self.current = array(dummyCu)
         self.name = array(dummyNa)
         self.resistance = array(dummyR)
         self.z = array(dummyZ)
-
+        self.Time = dummyTime
 
     def distanceOffset(self, offset):
         self.distance = self.distance-offset
@@ -503,8 +523,8 @@ class linescan():
 
     def normalizeRange(self, E_range): #normalize data given an energy range
         index = []
-        index.append(self.energyFind(-E_range[0]))
-        index.append(self.energyFind(-E_range[1]))
+        index.append(self.energyFind(E_range[0]))
+        index.append(self.energyFind(E_range[1]))
         for i in range(len(self.name)):
             conductanceCut = self.conductance[i][index[0]:index[1]]
             avg = mean(conductanceCut)
@@ -534,29 +554,51 @@ class linescan():
             conductanceCut = self.conductance[i][index[0]:index[1]]
             avg = mean(conductanceCut)
             self.conductance[i][zero_idx:] = self.conductance[i][zero_idx:]/avg
-    def biasCalibration(self,cal):
-        self.bias = self.bias*cal
+
+    def biasCalibration(self):
+        self.bias = self.bias*1.0312
+
     ### Perform deconvolution extending the spectra with N point
     def deconvolution_nof(self,gap=1.37e-3, temperature=1.3, dynesParameter=40e-6, energyR=8e-3, spacing=35e-6,x_min=-4E-3,x_max=4E-3,N=300,normalizeE = 3e-3):
         self.conductance_dec = np.zeros((self.distance.shape[0],int(math.ceil(energyR*2/spacing))))
         for i in range(self.conductance.shape[0]):
             self.bias_dec, self.conductance_dec[i,:] = deconv.dynesDeconvolute_nof(self.bias,self.conductance[i,:],gap, temperature, dynesParameter, energyR, spacing,x_min,x_max,N)
         # normalize
-        self.bias_dec = np.flip(self.bias_dec)
+        self.bias_dec = self.bias_dec
         for i in range(0,self.conductance_dec.shape[0]):
             self.conductance_dec[i,:] = self.conductance_dec[i,:]/self.conductance_dec[i,abs(self.bias_dec-normalizeE).argmin()]
+        #flip it
+        self.conductance_dec = np.fliplr(self.conductance_dec)
 
     ### Perform deconvolution extending the spectra with N point and applying a Savitzky–Golay filter to the data
     def deconvolution(self,gap=1.37e-3, temperature=1.3, dynesParameter=40e-6, energyR=8e-3, spacing=35e-6,x_min=-4E-3,x_max=4E-3,N=300, window=15,order=2,n=2000,normalizeE = 3e-3):
         self.conductance_dec = np.zeros((len(self.distance),int(math.ceil(energyR*2/spacing))))
         for i in range(self.conductance.shape[0]):
             self.bias_dec, self.conductance_dec[i,:] = deconv.dynesDeconvolute(self.bias,self.conductance[i,:],gap, temperature, dynesParameter, energyR, spacing,x_min,x_max,N, window,order,n)
-        self.bias_dec = np.flip(self.bias_dec)
+        self.bias_dec = self.bias_dec
         # normalize
-        for i in range(0,self.conductance_dec.shape[0]):
-            self.conductance_dec[i,:] = self.conductance_dec[i,:]/self.conductance_dec[i,abs(self.bias_dec-normalizeE).argmin()]
+        # for i in range(0,self.conductance_dec.shape[0]):
+        #     self.conductance_dec[i,:] = self.conductance_dec[i,:]/self.conductance_dec[i,abs(self.bias_dec-normalizeE).argmin()]
+        #flip it
+        self.conductance_dec = np.fliplr(self.conductance_dec)
 
+    def energyFind_dec(self, energy):
+        index = (abs(self.bias_dec - energy)).argmin()
+        return index
 
+    def normalizeTo_dec(self, energy):
+        index = self.energyFind_dec(energy)
+        for i in range(len(self.name)):
+            self.conductance_dec[i][:] = self.conductance_dec[i][:]/self.conductance_dec[i][index]
+
+    def normalizeRange_dec(self, E_range): #normalize data given an energy range
+        index = []
+        index.append(self.energyFind_dec(E_range[0]))
+        index.append(self.energyFind_dec(E_range[1]))
+        for i in range(len(self.name)):
+            conductanceCut = self.conductance_dec[i][index[0]:index[1]]
+            avg = mean(conductanceCut)
+            self.conductance_dec[i][:] = self.conductance_dec[i][:]/avg
 
 class Zapproach():
         def __init__(self):
@@ -653,6 +695,8 @@ class grid():
             self.yoffset = self.header['Y Offset (nm)']
         if 'Scan Angle (deg)' in self.header:
             self.scanangle = self.header['Scan Angle (deg)']
+
+
     #def cutFind(self, value):
     #    index = (abs(self.sweep - value)).argmin()
     #    return index
@@ -706,3 +750,4 @@ class linescan3ds():
             conductanceCut = self.conductance[i][index[0]:index[1]]
             avg = mean(conductanceCut)
             self.conductance[i][:] = self.conductance[i][:]/avg
+
