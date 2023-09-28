@@ -78,6 +78,11 @@ def didv(axs):
         axs.set_ylabel('dI/dV '+r'(G$_N$)',fontname="Arial")
         axs.tick_params(axis='both',direction='in')
 
+def didv_p():
+        plt.xlabel('Bias (mV)',fontname="Arial")
+        plt.ylabel('dI/dV '+r'(G$_N$)',fontname="Arial")
+        plt.tick_params(axis='both',direction='in')
+
 def didv_dec(axs):
     if type(axs) == type(np.zeros(2)):
         for ax in axs:

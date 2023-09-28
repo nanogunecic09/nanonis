@@ -1,7 +1,7 @@
 from re import T
 from scipy.signal import savgol_filter
 from scipy.interpolate import interp1d
-from superconductor import dynes_curve, dynes_curve_diff, dynes_wrong,coulomb,dynesdos, fdd
+from superconductor import dynes_curve, dynes_curve_diff, dynes_wrong,coulomb,dynesdos, fdd,dynes_javi
 from distributions import fermiDirac, fermiDirac_diff
 import numpy as np
 import pandas as pd
@@ -155,9 +155,12 @@ def coulombDeconvolute_nof(bias,conductance,T,R2,C1,C2,Q0, energyR=6E-3, spacing
     return dec_bias,dec_conductance
 
 
-def dynesConvolute(E,E_int,conductance,delta,T,gamma):
+
+def dynesConvolute(V,E_int,conductance,delta,T,gamma):
     curr = []
-    for Vp in E:
+    for Vp in V:
         currp = np.trapz((conductance)*dynesdos(E_int-Vp,gamma,delta)*(fdd(E_int, Vp, T)-fdd(E_int,0, T)),x=E_int)
         curr.append(currp)
     return np.gradient(np.array(curr))
+
+

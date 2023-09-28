@@ -270,6 +270,9 @@ class nYSR_sq: # loading of G0 implemented
 
     def HoleDOS(self):
         return np.imag(np.trace(np.dot(self.G(),np.diag((0,0,1,1)))))
+    
+    def SpinUpDOS(self): # calculate the projection of the spin along Sz
+        return np.imag(np.trace(np.dot(self.G(),np.diag((1,-1,1,-1)))))
 
     def BCS(self,delta):
         w = np.sqrt(delta**2-self.E**2)
