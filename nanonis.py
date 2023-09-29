@@ -395,6 +395,22 @@ class biasSpectroscopy():
     #def currentOffset(self, offset):
     #    self.data[self.currentColumn] = self.data[self.currentColumn]-offset
 
+
+    def normalizeRange_symm(self, range): #normalize data given an energy range using both positive and negative baselines
+        index = []
+        index.append(self.energyFind(range[1]))
+        index.append(self.energyFind(range[0]))
+        conductanceCut_neg = self.conductance[index[0]:index[1]]
+        index = []
+        index.append(self.energyFind(-range[1]))
+        index.append(self.energyFind(-range[0]))
+        conductanceCut_pos = self.conductance[index[1]:index[0]]        
+        avg = mean(np.concatenate((conductanceCut_neg,conductanceCut_pos)))
+        self.conductance[:] = self.conductance[:]/avg
+        return conductanceCut_neg,conductanceCut_pos
+    #def currentOffset(self, offset):
+    #    self.data[self.currentColumn] = self.data[self.currentColumn]-offset
+
     def conductanceOffset(self, offset):
         self.data[self.conductanceColumn] = self.data[self.conductanceColumn]-offset
     
@@ -458,7 +474,7 @@ class linescan():
     def __init__(self):
         self.type = 'Linescan'
 
-    def load(self, files):
+    def load(self, files,normalize=False,normalize_range = [3e-3,4e-3]):
         spectra = biasSpectroscopy()
         dummyCo = []
         dummyCu = []
@@ -475,6 +491,8 @@ class linescan():
         self.bias = np.flip(array(spectra.bias))
         for i in files:
             spectra.load(i)
+            if normalize == True:
+                spectra.normalizeRange_symm(normalize_range)
             dummyCo.append(spectra.conductance)
             dummyCu.append(spectra.current)
             dummyNa.append(spectra.name)
@@ -529,6 +547,16 @@ class linescan():
             conductanceCut = self.conductance[i][index[0]:index[1]]
             avg = mean(conductanceCut)
             self.conductance[i][:] = self.conductance[i][:]/avg
+
+    def normalizeRange_symm(self, E_range): #normalize data given an energy range
+        index = []
+        index.append(self.energyFind(E_range[0]))
+        index.append(self.energyFind(E_range[1]))
+        for i in range(len(self.name)):
+            conductanceCut = self.conductance[i][index[0]:index[1]]
+            avg = mean(conductanceCut)
+            self.conductance[i][:] = self.conductance[i][:]/avg
+
 
     def hand_normalization(self,path_values):
         values = pd.read_csv(path_values,header=None)
