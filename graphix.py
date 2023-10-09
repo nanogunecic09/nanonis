@@ -937,6 +937,7 @@ class tri_grid():
         self.tri_grid = np.zeros((x.shape[0],y.shape[0],300))+0
         self.x = width
         self.y = height
+        self.triangle_points = triangle_points
         n=0
         self.spectra = nanonis.biasSpectroscopy()
         self.spectra.load(fnames[0])
@@ -948,7 +949,10 @@ class tri_grid():
             self.spectra.normalizeRange(normalizeR)
             self.tri_grid[x_idx,y_idx,:] = self.spectra.conductance
             n+=1
+        self.x_coords = np.linspace(0,self.x,self.tri_grid.shape[0])
+        self.y_coords = np.linspace(0,self.y,self.tri_grid.shape[0])
         return
+    
     def explorer(self):
         self.figure = plt.figure(figsize=(6,6))
         self.axMap = self.figure.add_subplot(211)
@@ -967,7 +971,8 @@ class tri_grid():
         self.energyCut_slider.on_changed(self.update_energy)
         self.smin_slider.on_changed(self.update_cscale)
         self.smax_slider.on_changed(self.update_cscale)
-        self.im1 = self.axMap.imshow(self.conductance,extent=[0,self.x,0,self.y],interpolation='nearest',cmap='viridis',vmax=0.5,vmin=0)
+        self.im1 = self.axMap.imshow(self.conductance,extent=[0,self.x,self.y,0],interpolation='nearest',cmap='viridis',vmax=0.5,vmin=0)
+        self.axvline = self.axSpec.axvline(0)
         #energy label 
         self.label = self.axMap.text(self.x/10,self.x/10,'0 mV',color='white')
         #axis labels
@@ -975,19 +980,35 @@ class tri_grid():
         self.axMap.set_ylabel('y (nm)')
         # plot of the spectra
         self.axSpec.plot(self.bias*1e3,np.mean(self.tri_grid,axis=(0,1)))
-
+        self.figure.canvas.mpl_connect('button_press_event', self.update_spectrum_on_click)
 
     def update_energy(self,val):
         self.cutIdx = (abs(self.bias-val*1e-3)).argmin()
-        self.conductance = np.flipud(self.tri_grid[:,:,self.cutIdx])
+        self.conductance = self.tri_grid[:,:,self.cutIdx]
         self.im1.set_data(self.conductance)
         self.im1.set_clim(np.min(self.conductance),np.max(self.conductance))
         self.label.set_text('{} mV'.format(np.round(val,2)))
         self.figure.canvas.draw()
         # put index in plot
-        self.axSpec.clear()
-        self.axSpec.plot(self.bias*1e3,np.mean(self.tri_grid,axis=(0,1)))
-        self.axSpec.axvline(val)
+        self.axvline.remove()
+        self.axvline = self.axSpec.axvline(val)
+
+        
     def update_cscale(self,val):
         self.im1.set_clim([self.smin_slider.val,self.smax_slider.val])
         self.figure.canvas.draw()
+
+    def update_spectrum_on_click(self, event):
+        if event.inaxes == self.axMap:
+            x_coord, y_coord = event.xdata, event.ydata
+            x_idx = np.abs(self.x_coords - y_coord).argmin()
+            y_idx = np.abs(self.y_coords - x_coord).argmin()
+            selected_spectrum = self.tri_grid[x_idx,y_idx ,:]
+            
+            # Update the spectra plot
+            self.axSpec.clear()
+            self.axSpec.plot(self.bias * 1e3, selected_spectrum)
+            self.axSpec.set_xlabel('Bias (mV)')
+            self.axSpec.set_ylabel('Conductance')
+            self.axSpec.set_title(f'Spectrum at ({x_coord}, {y_coord})')
+            self.figure.canvas.draw()

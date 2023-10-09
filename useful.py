@@ -2,6 +2,8 @@ import matplotlib.pyplot as plt
 import pickle
 import time
 import numpy as np
+from scipy.ndimage import gaussian_filter
+from scipy.interpolate import interp1d
 #to get a list of measurement filenames given:
 # path, staticname eg.: 'S211026_', indexes: (1,200) and estension (.dat default) 
 def getfnames(path,staticname, idx,extension='.dat'):
@@ -117,3 +119,12 @@ def timing(i,t0,cycles):
 def energyFind(bias, energy):
     index = (abs(bias - energy)).argmin()
     return index
+
+
+
+def data_smooth(x,y,order=1):
+    interp_func = interp1d(x, y, kind='cubic')
+    new_x = np.linspace(x.min(),x.max(),2000)
+    int_y = interp_func(new_x)
+    yy = gaussian_filter(int_y,order)
+    return new_x,yy
