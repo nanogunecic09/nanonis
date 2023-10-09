@@ -288,7 +288,7 @@ class spin5_sq():
         self.s3 = np.array([[1,0],[0,-1]])
         self.theta_ = theta # theta of the spins
         self.J_ = J # J of the atoms in order
-        self.U_ = np.zeros(N) + U # potential scattering
+        self.U_ = U # potential scattering
         self.r__ = r__ #atomic positions
         self.m = m # mass electron
         self.pf = pf # fermi momentum
