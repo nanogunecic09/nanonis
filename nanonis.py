@@ -333,6 +333,12 @@ class biasSpectroscopy():
         if 'SRX (V)' in self.data:
             self.conductance = self.data['SRX (V)']
             self.conductanceColumn = 'SRX (V)'
+        if 'LI Demod 1 X (A)' in self.data:
+            self.conductance = self.data['LI Demod 1 X (A)']
+            self.conductanceColumn = 'LI Demod 1 X (A)'
+        if 'LI Demod 1 X [AVG] (A)' in self.data:
+            self.conductance = self.data['LI Demod 1 X [AVG] (A)']
+            self.conductanceColumn = 'LI Demod 1 X [AVG] (A)'
         if 'SRY (V)' in self.data:
             self.sry = self.data['SRY (V)']
         elif 'SRX [AVG] (V)' in self.data:
