@@ -360,6 +360,9 @@ class biasSpectroscopy():
         elif 'Current [AVG] (A)' in self.data:
             self.current = self.data['Current [AVG] (A)']
             self.currentColumn = 'Current [AVG] (A)'
+        elif 'Current [AVG]' in self.data:
+            self.current = self.data['Current [AVG] (A)']
+            self.currentColumn = 'Current [AVG] (A)'
         if 'Current [bwd] (A)' in self.data:
             self.currentb = self.data['Current [bwd] (A)']
             self.currentbColumn = 'Current [bwd] (A)'
@@ -381,7 +384,12 @@ class biasSpectroscopy():
             self.biascal = float(self.header['Bias>Calibration (V/V)'])
 #        if self.header['Date']:
 #            self.date = parse(self.header['Date'])
-
+        if 'LI Demod 1 X (A)' in self.data:
+            self.conductance = self.data['LI Demod 1 X (A)']
+        if 'Bias_VI (V)' in self.data:
+            self.biasVI_b = self.data['Bias_VI (V)']
+        if 'Bias_VI [bwd] (V)' in self.data:
+            self.biasVI_f = self.data['Bias_VI [bwd] (V)']
     def biasOffset(self, offset):
         self.data['Bias calc (V)'] = self.data['Bias calc (V)']-offset
 
