@@ -396,6 +396,10 @@ class biasSpectroscopy():
             self.biasVI_b = self.data['Bias_VI (V)']
         if 'Bias_VI [bwd] (V)' in self.data:
             self.biasVI_f = self.data['Bias_VI [bwd] (V)']
+        if 'Input 2 (V)' in self.data:
+            self.biasVI_b = self.data['Input 2 (V)']
+        if 'Input 2 [bwd] (V)' in self.data:
+            self.biasVI_f = self.data['Input 2 [bwd] (V)']
     def biasOffset(self, offset):
         self.data['Bias calc (V)'] = self.data['Bias calc (V)']-offset
 
