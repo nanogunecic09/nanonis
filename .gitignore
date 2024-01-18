@@ -1,9 +1,20 @@
-__pycache__/
 Jon/ste_files
-<<<<<<< HEAD
 Jon/analisis.ipynb
 Jon/analisis2.ipynb
-=======
 Jon/Raw_analysis_sandra2.ipynb
 Jon/ste_analysis_current_bias.ipynb
->>>>>>> 612837fd1e8f2cd2be342958e3282366438ef016
+Jon/Order.xls
+__pycache__/useful.cpython-39.pyc
+__pycache__/useful.cpython-38.pyc
+Jon/Order.xls
+Jon/Raw_analysis_sandra2.ipynb
+__pycache__/deconvolution.cpython-39.pyc
+__pycache__/detect_peaks.cpython-39.pyc
+__pycache__/distributions.cpython-39.pyc
+__pycache__/functions.cpython-39.pyc
+__pycache__/graphix.cpython-39.pyc
+__pycache__/Green_functions.cpython-39.pyc
+__pycache__/gui.cpython-39.pyc
+__pycache__/nanonis.cpython-39.pyc
+__pycache__/shiba_fit.cpython-39.pyc
+__pycache__/superconductor.cpython-39.pyc

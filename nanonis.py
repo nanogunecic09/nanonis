@@ -486,6 +486,12 @@ class biasSpectroscopy():
         index = (abs(self.bias_dec - energy)).idxmin()
         self.conductance_dec = self.conductance_dec/self.conductance_dec[index]
 
+    def VI_offset(self):
+        off_f = self.biasVI_f[np.abs(self.bias-0).argmin()]
+        off_b = self.biasVI_b[np.abs(self.bias-0).argmin()]
+        self.biasVI_b = self.biasVI_b-off_b
+        self.biasVI_f = self.biasVI_b-off_f
+
 
 class linescan():
 
