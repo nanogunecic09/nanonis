@@ -2,6 +2,8 @@ Jon/ste_files
 Jon/analisis.ipynb
 Jon/analisis2.ipynb
 Jon/Raw_analysis_sandra2.ipynb
+Jon/Tdata.dat
+Jon/data.dat
 Jon/ste_analysis_current_bias.ipynb
 Jon/Order.xls
 __pycache__/useful.cpython-39.pyc
@@ -18,8 +20,17 @@ __pycache__/gui.cpython-39.pyc
 __pycache__/nanonis.cpython-39.pyc
 __pycache__/shiba_fit.cpython-39.pyc
 __pycache__/superconductor.cpython-39.pyc
+<<<<<<< HEAD
 Jon/Order.xls
 Jon/Raw_analysis_sandra2.ipynb
 Jon/analisis.ipynb
 Jon/Raw_analysis_sandra2.ipynb
 Jon/analisis.ipynb
+=======
+__pycache__/superconductor.cpython-312.pyc
+__pycache__/deconvolution.cpython-312.pyc
+__pycache__/functions.cpython-312.pyc
+__pycache__/Green_functions.cpython-312.pyc
+__pycache__/nanonis.cpython-312.pyc
+__pycache__/superconductor.cpython-312.pyc
+>>>>>>> 4b9968a59608aed30a88ba1fecc8de9e848142aa
