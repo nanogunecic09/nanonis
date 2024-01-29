@@ -333,6 +333,12 @@ class biasSpectroscopy():
         if 'SRX (V)' in self.data:
             self.conductance = self.data['SRX (V)']
             self.conductanceColumn = 'SRX (V)'
+        if 'LI Demod 1 X (A)' in self.data:
+            self.conductance = self.data['LI Demod 1 X (A)']
+            self.conductanceColumn = 'LI Demod 1 X (A)'
+        if 'LI Demod 1 X [AVG] (A)' in self.data:
+            self.conductance = self.data['LI Demod 1 X [AVG] (A)']
+            self.conductanceColumn = 'LI Demod 1 X [AVG] (A)'
         if 'SRY (V)' in self.data:
             self.sry = self.data['SRY (V)']
         elif 'SRX [AVG] (V)' in self.data:
@@ -360,6 +366,9 @@ class biasSpectroscopy():
         elif 'Current [AVG] (A)' in self.data:
             self.current = self.data['Current [AVG] (A)']
             self.currentColumn = 'Current [AVG] (A)'
+        elif 'Current [AVG]' in self.data:
+            self.current = self.data['Current [AVG] (A)']
+            self.currentColumn = 'Current [AVG] (A)'
         if 'Current [bwd] (A)' in self.data:
             self.currentb = self.data['Current [bwd] (A)']
             self.currentbColumn = 'Current [bwd] (A)'
@@ -381,7 +390,16 @@ class biasSpectroscopy():
             self.biascal = float(self.header['Bias>Calibration (V/V)'])
 #        if self.header['Date']:
 #            self.date = parse(self.header['Date'])
-
+        if 'LI Demod 1 X (A)' in self.data:
+            self.conductance = self.data['LI Demod 1 X (A)']
+        if 'Bias_VI (V)' in self.data:
+            self.biasVI_b = self.data['Bias_VI (V)']
+        if 'Bias_VI [bwd] (V)' in self.data:
+            self.biasVI_f = self.data['Bias_VI [bwd] (V)']
+        if 'Input 2 (V)' in self.data:
+            self.biasVI_b = self.data['Input 2 (V)']
+        if 'Input 2 [bwd] (V)' in self.data:
+            self.biasVI_f = self.data['Input 2 [bwd] (V)']
     def biasOffset(self, offset):
         self.data['Bias calc (V)'] = self.data['Bias calc (V)']-offset
 
@@ -467,6 +485,15 @@ class biasSpectroscopy():
     def dec_normalizeTo(self,energy):
         index = (abs(self.bias_dec - energy)).idxmin()
         self.conductance_dec = self.conductance_dec/self.conductance_dec[index]
+
+    def R_calc(self):
+        off_f = self.biasVI_f[np.abs(self.bias-0).argmin()]
+        off_b = self.biasVI_b[np.abs(self.bias-0).argmin()]
+        self.biasVI_b = self.biasVI_b-off_b
+        self.biasVI_f = self.biasVI_f-off_f
+        self.current_lin = np.linspace(self.current.min(),self.current.max(),self.bias.shape[0])
+        self.resistance_b = self.biasVI_b*1e6/(self.bias*(self.current.max()*1e9/(self.bias.max()*1e3)))
+        self.resistance_f = self.biasVI_f*1e6/(self.bias*(self.current.max()*1e9/(self.bias.max()*1e3)))
 
 
 class linescan():
