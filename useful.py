@@ -77,7 +77,7 @@ def save_obj(obj, name ):
 def load_obj(name ):
     with open( name + '.pkl', 'rb') as f:
         return pickle.load(f)
-    
+
 
 def didv(axs):
     if type(axs) == type(np.zeros(2)):
@@ -220,3 +220,12 @@ def export_colormap(colormap, filename):
         
         file.write("[Header end]")
 
+import matplotlib
+def spines(ax):
+    plt.setp(ax.spines.values(), lw=0.3)
+    ax.tick_params(width=0.3)
+    new_rc_params = {'text.usetex': False,
+    "svg.fonttype": 'none'
+    }
+    matplotlib.rcParams.update(new_rc_params)
+    matplotlib.rcParams['axes.unicode_minus']=False

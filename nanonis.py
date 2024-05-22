@@ -392,6 +392,8 @@ class biasSpectroscopy():
 #            self.date = parse(self.header['Date'])
         if 'LI Demod 1 X (A)' in self.data:
             self.conductance = self.data['LI Demod 1 X (A)']
+        if 'LI Demod 1 R (A)' in self.data:
+            self.conductance = self.data['LI Demod 1 R (A)']
         if 'Bias_VI (V)' in self.data:
             self.biasVI_b = self.data['Bias_VI (V)']
         if 'Bias_VI [bwd] (V)' in self.data:
@@ -400,6 +402,10 @@ class biasSpectroscopy():
             self.biasVI_b = self.data['Input 2 (V)']
         if 'Input 2 [bwd] (V)' in self.data:
             self.biasVI_f = self.data['Input 2 [bwd] (V)']
+        if 'Input 2 [AVG] [bwd] (V)' in self.data:
+            self.biasVI_f = self.data['Input 2 [AVG] [bwd] (V)']
+        if 'Input 2 [AVG] (V)' in self.data:
+            self.biasVI_f = self.data['Input 2 [AVG] (V)']
     def biasOffset(self, offset):
         self.data['Bias calc (V)'] = self.data['Bias calc (V)']-offset
 
