@@ -1068,3 +1068,201 @@ class tri_grid():
         # Sort points first by -X (right to left), then by Y (bottom to top)
         return sorted(points, key=lambda point: (point[1], -point[0]))
 
+
+class tri_grid_new():
+#Falta hacer bien el MLS
+    def __init__(self):
+        self.type = 'Grid'
+    
+    def load(self,fnames,triangle_points,square_points,center_x,center_y,width,height,normalizeR=[4e-3,5e-3]):
+        x = np.arange(center_x-width/2,center_x+width/2,1.5)
+        y = np.arange(center_y-width/2,center_y+width/2,1.5)
+        self.tri_grid = np.zeros((x.shape[0],y.shape[0],300))+0
+        self.x = width
+        self.y = height
+        n=0
+        self.spectra = nanonis.biasSpectroscopy()
+        self.spectra.load(fnames[0])
+        self.bias = self.spectra.bias
+        for f in fnames[:-1]:
+            x_idx = np.abs(x-triangle_points[n][0]).argmin()
+            y_idx = np.abs(y-triangle_points[n][1]).argmin()
+            self.spectra.load(f)
+            self.spectra.normalizeRange(normalizeR)
+            self.tri_grid[x_idx,y_idx,:] = self.spectra.conductance
+            n+=1
+        return
+    def explorer(self):
+        self.figure = plt.figure(figsize=(6,6))
+        self.axMap = self.figure.add_subplot(211)
+        self.axSpec = self.figure.add_subplot(212)
+        self.axSpec.margins(0.05)
+        self.axMap.margins(0.05)
+        self.figure.subplots_adjust(bottom=0.35)
+        self.ax1 = self.figure.add_axes([0.20, 0.10, 0.65, 0.03])
+        self.ax2 = self.figure.add_axes([0.20, 0.15, 0.65, 0.03])
+        self.ax3 = self.figure.add_axes([0.20, 0.20, 0.65, 0.03])
+        self.conductance = self.tri_grid[:,:,0]
+        # self.energyCut_slider = Slider(self.ax1,'Energy cut',self.gridraw.bias.min()*1e3,self.gridraw.bias.max()*1e3,valinit=0, valstep=(self.gridraw.bias[0]-self.gridraw.bias[1])*1e3)
+        self.energyCut_slider = Slider(self.ax1,'Energy cut',self.bias.min()*1e3,self.bias.max()*1e3,valinit=0, valstep=(0.01))
+        self.smin_slider = Slider(self.ax2, 'Min', self.conductance.min(), self.conductance.max(), valinit =self.conductance.min())
+        self.smax_slider = Slider(self.ax3, 'Max', self.conductance.min(), self.conductance.max(), valinit =self.conductance.max()*0.5)            
+        self.energyCut_slider.on_changed(self.update_energy)
+        self.smin_slider.on_changed(self.update_cscale)
+        self.smax_slider.on_changed(self.update_cscale)
+        self.im1 = self.axMap.imshow(self.conductance,extent=[0,self.x,0,self.y],interpolation='nearest',cmap='viridis',vmax=0.5,vmin=0)
+        #energy label 
+        self.label = self.axMap.text(self.x/10,self.x/10,'0 mV',color='white')
+        #axis labels
+        self.axMap.set_xlabel('x (nm)')
+        self.axMap.set_ylabel('y (nm)')
+        # plot of the spectra
+        self.axSpec.plot(self.bias*1e3,np.mean(self.tri_grid,axis=(0,1)))
+
+
+    def update_energy(self,val):
+        self.cutIdx = (abs(self.bias-val*1e-3)).argmin()
+        self.conductance = np.flipud(self.tri_grid[:,:,self.cutIdx])
+        self.im1.set_data(self.conductance)
+        self.im1.set_clim(np.min(self.conductance),np.max(self.conductance))
+        self.label.set_text('{} mV'.format(np.round(val,2)))
+        self.figure.canvas.draw()
+        # put index in plot
+        self.axSpec.clear()
+        self.axSpec.plot(self.bias*1e3,np.mean(self.tri_grid,axis=(0,1)))
+        self.axSpec.axvline(val)
+    def update_cscale(self,val):
+        self.im1.set_clim([self.smin_slider.val,self.smax_slider.val])
+        self.figure.canvas.draw()
+
+
+
+class tri_grid_fix():
+#Falta hacer bien el MLS
+    def __init__(self):
+        self.type = 'Grid'
+    
+
+    def load(self,fnames,square_points):
+
+        self.triangle_points = self.cut_triangle_from_square(square_points, v1, v2, v3)
+        self.triangle_points = self.sort_points(self.triangle_points)
+        self.x = np.arange(center_x-width/2,center_x+width/2,spacing)
+        self.y = np.arange(center_y-width/2,center_y+width/2,spacing)
+        n=0
+        self.spectra = nanonis.biasSpectroscopy()
+        self.spectra.load(fnames[0])
+        self.bias = self.spectra.bias
+        self.tri_grid = np.zeros((self.x.shape[0],self.y.shape[0],self.bias.shape[0]))
+        for f in fnames[:-1]:
+            x_idx = np.abs(self.x-self.triangle_points[n][0]).argmin()
+            y_idx = np.abs(self.y-self.triangle_points[n][1]).argmin()
+            self.spectra.load(f)
+            # self.spectra.normalizeRange(normalizeR)
+            self.tri_grid[x_idx,y_idx,:] = self.spectra.conductance
+            print(x_idx,y_idx)
+            n+=1
+
+        self.x_coords = np.linspace(0,self.width,self.tri_grid.shape[0])
+        self.y_coords = np.linspace(0,self.height,self.tri_grid.shape[1])
+        return
+
+
+
+    def explorer(self):
+        self.figure = plt.figure(figsize=(6,6))
+        self.axMap = self.figure.add_subplot(211)
+        self.axSpec = self.figure.add_subplot(212)
+        self.axSpec.margins(0.05)
+        self.axMap.margins(0.05)
+        self.figure.subplots_adjust(bottom=0.35)
+        self.ax1 = self.figure.add_axes([0.20, 0.10, 0.65, 0.03])
+        self.ax2 = self.figure.add_axes([0.20, 0.15, 0.65, 0.03])
+        self.ax3 = self.figure.add_axes([0.20, 0.20, 0.65, 0.03])
+        self.conductance = self.tri_grid[:,:,0]
+        # self.energyCut_slider = Slider(self.ax1,'Energy cut',self.gridraw.bias.min()*1e3,self.gridraw.bias.max()*1e3,valinit=0, valstep=(self.gridraw.bias[0]-self.gridraw.bias[1])*1e3)
+        self.energyCut_slider = Slider(self.ax1,'Energy cut',self.bias.min()*1e3,self.bias.max()*1e3,valinit=0, valstep=(0.01))
+        self.smin_slider = Slider(self.ax2, 'Min', self.conductance.min(), self.conductance.max(), valinit =self.conductance.min())
+        self.smax_slider = Slider(self.ax3, 'Max', self.conductance.min(), self.conductance.max(), valinit =self.conductance.max())            
+        self.energyCut_slider.on_changed(self.update_energy)
+        self.smin_slider.on_changed(self.update_cscale)
+        self.smax_slider.on_changed(self.update_cscale)
+        self.im1 = self.axMap.imshow(np.rot90(np.rot90(np.rot90(self.conductance))),extent=[0,self.width,0,self.height],interpolation='nearest',cmap='viridis',vmax=0.5,vmin=0)
+        self.axvline = self.axSpec.axvline(0)
+        #energy label
+        self.label = self.axMap.text(self.width/10,self.height/10,'0 mV',color='white')
+        #axis labels
+        self.axMap.set_xlabel('x (nm)')
+        self.axMap.set_ylabel('y (nm)')
+        # plot of the spectra
+        self.axSpec.plot(self.bias*1e3,np.mean(self.tri_grid,axis=(0,1)))
+        self.figure.canvas.mpl_connect('button_press_event', self.update_spectrum_on_click)
+
+    def update_energy(self,val):
+        self.cutIdx = (abs(self.bias-val*1e-3)).argmin()
+        self.conductance = self.tri_grid[:,:,self.cutIdx]
+        self.im1.set_data(np.rot90(self.conductance))
+        self.im1.set_clim(np.min(self.conductance),np.max(self.conductance))
+        self.label.set_text('{} mV'.format(np.round(val,2)))
+        self.figure.canvas.draw()
+        # put index in plot
+        self.axvline.remove()
+        self.axvline = self.axSpec.axvline(val)
+
+        
+    def update_cscale(self,val):
+        self.im1.set_clim([self.smin_slider.val,self.smax_slider.val])
+        self.figure.canvas.draw()
+
+    def update_spectrum_on_click(self, event):
+        if event.inaxes == self.axMap:
+            x_coord, y_coord = event.xdata, event.ydata
+            x_idx = np.abs(self.x_coords - y_coord).argmin()
+            y_idx = np.abs(self.y_coords - x_coord).argmin()
+            selected_spectrum = self.tri_grid[x_idx,y_idx ,:]
+            
+            # Update the spectra plot
+            self.axSpec.clear()
+            self.axSpec.plot(self.bias * 1e3, selected_spectrum)
+            self.axSpec.set_xlabel('Bias (mV)')
+            self.axSpec.set_ylabel('Conductance')
+            self.axSpec.set_title(f'Spectrum at ({x_coord}, {y_coord})')
+            self.figure.canvas.draw()
+
+
+    def frange(self,start, end, step):
+        while start <= end:
+            yield start
+            start += step
+
+    def generate_square_grid(self,center_x, center_y, width, height, spacing=1.0):
+        min_x = center_x - width / 2
+        max_x = center_x + width / 2
+        min_y = center_y - height / 2
+        max_y = center_y + height / 2
+        square_points = []
+        for x in self.frange(min_x, max_x, spacing):
+            for y in self.frange(min_y, max_y, spacing):
+                square_points.append((x, y))
+
+        return square_points
+
+    def is_inside_triangle(self,point, v1, v2, v3):
+        def sign(p1, p2, p3):
+            return (p1[0] - p3[0]) * (p2[1] - p3[1]) - (p2[0] - p3[0]) * (p1[1] - p3[1])
+        b1 = sign(point, v1, v2) < 0.0
+        b2 = sign(point, v2, v3) < 0.0
+        b3 = sign(point, v3, v1) < 0.0
+
+        return b1 == b2 == b3
+
+    def cut_triangle_from_square(self,square_points, v1, v2, v3):
+        triangle_points = []
+        for point in square_points:
+            if self.is_inside_triangle(point, v1, v2, v3):
+                triangle_points.append(point)
+        return triangle_points
+
+    def sort_points(self,points):
+        # Sort points first by -X (right to left), then by Y (bottom to top)
+        return sorted(points, key=lambda point: (point[1], -point[0]))

@@ -229,3 +229,27 @@ def spines(ax):
     }
     matplotlib.rcParams.update(new_rc_params)
     matplotlib.rcParams['axes.unicode_minus']=False
+
+
+import shutil
+import os
+
+def copy_files(file_paths, destination_folder):
+    """
+    Copies files from a list of paths to a defined destination folder.
+
+    :param file_paths: List of file paths to copy
+    :param destination_folder: Destination folder where files will be copied
+    """
+    if not os.path.exists(destination_folder):
+        os.makedirs(destination_folder)
+
+    for file_path in file_paths:
+        if os.path.isfile(file_path):
+            try:
+                shutil.copy(file_path, destination_folder)
+                print(f"Copied {file_path} to {destination_folder}")
+            except Exception as e:
+                print(f"Error copying {file_path} to {destination_folder}: {e}")
+        else:
+            print(f"File not found: {file_path}")

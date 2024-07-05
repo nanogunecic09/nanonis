@@ -392,8 +392,16 @@ class biasSpectroscopy():
 #            self.date = parse(self.header['Date'])
         if 'LI Demod 1 X (A)' in self.data:
             self.conductance = self.data['LI Demod 1 X (A)']
-        if 'LI Demod 1 R (A)' in self.data:
-            self.conductance = self.data['LI Demod 1 R (A)']
+        if 'LI Demod 1 X [bwd] (A)' in self.data:
+            self.conductance_bwd = self.data['LI Demod 1 X [bwd] (A)']
+        if 'LI Demod 1 X [AVG] (A)' in self.data:
+            self.conductance = self.data['LI Demod 1 X [AVG] (A)']
+        if 'LI Demod 1 X [AVG] [bwd] (A)' in self.data:
+            self.conductance_bwd = self.data['LI Demod 1 X [AVG] [bwd] (A)']
+        if 'LI Demod 1 R (V)' in self.data:
+            self.conductance = self.data['LI Demod 1 R (V)']
+        if 'LI Demod 1 R (A) [bwd]' in self.data:
+            self.conductance_bwd = self.data['LI Demod 1 R (A) [bwd]']
         if 'Bias_VI (V)' in self.data:
             self.biasVI_b = self.data['Bias_VI (V)']
         if 'Bias_VI [bwd] (V)' in self.data:
@@ -403,7 +411,7 @@ class biasSpectroscopy():
         if 'Input 2 [bwd] (V)' in self.data:
             self.biasVI_f = self.data['Input 2 [bwd] (V)']
         if 'Input 2 [AVG] [bwd] (V)' in self.data:
-            self.biasVI_f = self.data['Input 2 [AVG] [bwd] (V)']
+            self.biasVI_b = self.data['Input 2 [AVG] [bwd] (V)']
         if 'Input 2 [AVG] (V)' in self.data:
             self.biasVI_f = self.data['Input 2 [AVG] (V)']
     def biasOffset(self, offset):
@@ -501,7 +509,8 @@ class biasSpectroscopy():
         self.resistance_b = self.biasVI_b*1e6/(self.bias*(self.current.max()*1e9/(self.bias.max()*1e3)))
         self.resistance_f = self.biasVI_f*1e6/(self.bias*(self.current.max()*1e9/(self.bias.max()*1e3)))
 
-
+    def current_cal(self):
+        self.curr = np.flip(1e9*np.linspace(self.current.min(),self.current.max(),self.bias.shape[0]))
 class linescan():
 
     def __init__(self):
