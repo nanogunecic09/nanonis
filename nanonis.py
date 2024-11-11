@@ -403,17 +403,17 @@ class biasSpectroscopy():
         if 'LI Demod 1 R (A) [bwd]' in self.data:
             self.conductance_bwd = self.data['LI Demod 1 R (A) [bwd]']
         if 'Bias_VI (V)' in self.data:
-            self.biasVI_b = self.data['Bias_VI (V)']
+            self.biasVI_f = self.data['Bias_VI (V)']
         if 'Bias_VI [bwd] (V)' in self.data:
-            self.biasVI_f = self.data['Bias_VI [bwd] (V)']
+            self.biasVI_b = self.data['Bias_VI [bwd] (V)']
         if 'Input 2 (V)' in self.data:
-            self.biasVI_b = self.data['Input 2 (V)']
+            self.biasVI_f = self.data['Input 2 (V)']
         if 'Input 2 [bwd] (V)' in self.data:
-            self.biasVI_f = self.data['Input 2 [bwd] (V)']
+            self.biasVI_b = self.data['Input 2 [bwd] (V)']
         if 'Input 2 [AVG] [bwd] (V)' in self.data:
-            self.biasVI_b = self.data['Input 2 [AVG] [bwd] (V)']
+            self.biasVI_f = self.data['Input 2 [AVG] [bwd] (V)']
         if 'Input 2 [AVG] (V)' in self.data:
-            self.biasVI_f = self.data['Input 2 [AVG] (V)']
+            self.biasVI_b = self.data['Input 2 [AVG] (V)']
     def biasOffset(self, offset):
         self.data['Bias calc (V)'] = self.data['Bias calc (V)']-offset
 
