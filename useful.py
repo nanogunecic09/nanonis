@@ -287,14 +287,3 @@ def explore(map):
 
     plt.show()
 
-def findmax(fnames):
-    energy = []
-    plt.figure()
-    map = []
-    for f in fnames:
-        y = spectra.load(f)
-        x, y = data_smooth(spectra.bias,spectra.conductance,order=10)
-        energy.append(x[y.argmax()])
-        map.append(y)
-    plt.imshow(map,aspect='auto',interpolation='nearest')
-    return np.array(energy)
