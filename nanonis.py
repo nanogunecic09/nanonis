@@ -417,6 +417,7 @@ class biasSpectroscopy():
     def biasOffset(self, offset):
         self.data['Bias calc (V)'] = self.data['Bias calc (V)']-offset
 
+
     def normalizeRange(self, range): #normalize data given an energy range
         index = []
         index.append(self.energyFind(range[1]))
@@ -506,8 +507,8 @@ class biasSpectroscopy():
         self.biasVI_b = self.biasVI_b-off_b
         self.biasVI_f = self.biasVI_f-off_f
         self.current_lin = np.linspace(self.current.min(),self.current.max(),self.bias.shape[0])
-        self.resistance_b = self.biasVI_b*1e6/(self.bias*(self.current.max()*1e9/(self.bias.max()*1e3)))
-        self.resistance_f = self.biasVI_f*1e6/(self.bias*(self.current.max()*1e9/(self.bias.max()*1e3)))
+        self.resistance_b = self.biasVI_b/(self.bias*(self.current.max()/(self.bias.max())))
+        self.resistance_f = self.biasVI_f/(self.bias*(self.current.max()/(self.bias.max())))
 
     def current_cal(self):
         self.curr = np.flip(1e9*np.linspace(self.current.min(),self.current.max(),self.bias.shape[0]))
