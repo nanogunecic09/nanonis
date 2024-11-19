@@ -580,7 +580,13 @@ class linescan():
         print(index)
         for i in range(len(self.name)):
             self.conductance[i][:] = self.conductance[i][:]/self.conductance[i][index]
-
+    
+    def curr_normalizeTo(self, energy):
+        index = self.energyFind(energy)
+        print(index)
+        for i in range(len(self.name)):
+            self.current[i][:] = self.current[i][:]/self.current[i][index]
+            
     def normalizeRange(self, E_range): #normalize data given an energy range
         index = []
         index.append(self.energyFind(E_range[0]))
