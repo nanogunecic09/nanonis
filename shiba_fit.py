@@ -145,18 +145,18 @@ def fitFunc2g_const(x,y,c_out,c_in,sigma): #2 gaussians with constant background
     
     params = model.make_params()
     ## Initialize parameters peak1
-    params['out_center'].set(c_out)
-    params['out_amplitude'].set(3, min=0)
-    params['out_sigma'].set(sigma)
+    params['out_center'].set(c_out,vary=True)
+    params['out_amplitude'].set(1, min=0,vary=True)
+    params['out_sigma'].set(sigma,vary=True)
     params['out_sigma'].set(vary=True)
     ## Initialize parameters peak2
-    params['in_center'].set(c_in)
-    params['in_amplitude'].set(3, min=0)
-    params['in_sigma'].set(sigma)
+    params['in_center'].set(c_in,vary=True)
+    params['in_amplitude'].set(1, min=0,vary=True)
+    params['in_sigma'].set(sigma,vary=True)
     params['in_sigma'].set(vary=True)
     ## Initialize parameters constant baseline
-    params['c0'].set(2)
-    params['c1'].set(2)
+    params['c0'].set(0,vary=True)
+    params['c1'].set(0,vary=True)
     result=model.fit(y,params,x=x)
     return result
 

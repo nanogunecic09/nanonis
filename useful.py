@@ -253,3 +253,48 @@ def copy_files(file_paths, destination_folder):
                 print(f"Error copying {file_path} to {destination_folder}: {e}")
         else:
             print(f"File not found: {file_path}")
+
+from matplotlib.widgets import Slider
+def explore(map):
+    # Initial plot setup
+    fig, ax = plt.subplots()
+    plt.subplots_adjust(left=0.1, bottom=0.3)  # Adjust plot to make room for sliders
+
+    # Initial vmax and vmin
+    vmin = np.min(map)
+    vmax = np.max(map)
+
+    # Initial plot
+    im = ax.imshow(map, aspect='auto', vmin=vmin, vmax=vmax, cmap='viridis')
+    plt.colorbar(im, ax=ax)
+
+    # Sliders for vmax and vmin
+    axcolor = 'lightgoldenrodyellow'
+    ax_vmin = plt.axes([0.1, 0.15, 0.65, 0.03], facecolor=axcolor)
+    ax_vmax = plt.axes([0.1, 0.1, 0.65, 0.03], facecolor=axcolor)
+
+    slider_vmin = Slider(ax_vmin, 'vmin', np.min(map), np.max(map), valinit=vmin)
+    slider_vmax = Slider(ax_vmax, 'vmax', np.min(map), np.max(map), valinit=vmax)
+
+    # Update function to be called when sliders are changed
+    def update(val):
+        im.set_clim([slider_vmin.val, slider_vmax.val])
+        fig.canvas.draw_idle()
+
+    # Connect the sliders to the update function
+    slider_vmin.on_changed(update)
+    slider_vmax.on_changed(update)
+
+    plt.show()
+
+def findmax(fnames):
+    energy = []
+    plt.figure()
+    map = []
+    for f in fnames:
+        y = spectra.load(f)
+        x, y = data_smooth(spectra.bias,spectra.conductance,order=10)
+        energy.append(x[y.argmax()])
+        map.append(y)
+    plt.imshow(map,aspect='auto',interpolation='nearest')
+    return np.array(energy)
