@@ -3,7 +3,7 @@ import pickle
 import time
 import numpy as np
 import useful as uf
-import nanonis
+from . import nanonis
 import ast
 from matplotlib.colors import LinearSegmentedColormap
 import matplotlib

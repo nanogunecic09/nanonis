@@ -24,7 +24,7 @@ def getfnames_5(path,staticname, idx,extension='.dat'):
     return fnames
 
 from scipy.signal import spectral
-import deconvolution as deconv
+from nanonis import deconvolution as deconv
 import nanonis
 spectra = nanonis.biasSpectroscopy()
 #output the average of the conductance of list of filenames (spectra)

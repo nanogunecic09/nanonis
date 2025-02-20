@@ -5,17 +5,12 @@
 from numpy import flip, arange, sqrt, array, linspace, zeros, rot90, flipud, fromfile, meshgrid, arange, fliplr, gradient, mean
 import numpy as np
 from pandas import DataFrame, read_csv
-from dateutil.parser import parse
 from scipy import interpolate
 import struct
 import colorcet as cc
 import pandas as pd
-from scipy.signal import savgol_filter
-from scipy.interpolate import interp1d
-from distributions import fermiDirac, fermiDirac_diff
-import deconvolution as deconv
+from nanonis import deconvolution as deconv
 import math
-import glob
 def readDATDec(filename, datatype):
     if datatype == 'dIdV':
         names = ['Bias', 'Conductance']

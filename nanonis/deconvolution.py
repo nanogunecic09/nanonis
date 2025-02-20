@@ -1,8 +1,8 @@
 from re import T
 from scipy.signal import savgol_filter
 from scipy.interpolate import interp1d
-from superconductor import dynes_curve, dynes_curve_diff, dynes_wrong,coulomb,dynesdos, fdd,dynes_javi
-from distributions import fermiDirac, fermiDirac_diff
+from .superconductor import dynes_curve, dynes_curve_diff, dynes_wrong,coulomb,dynesdos, fdd,dynes_javi
+from .distributions import fermiDirac, fermiDirac_diff
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt

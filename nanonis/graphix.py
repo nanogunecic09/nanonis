@@ -1,5 +1,5 @@
 from pandas.core.reshape.tile import cut
-import nanonis
+from . import nanonis
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gs
 from matplotlib import rc, ticker

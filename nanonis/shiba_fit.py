@@ -1,5 +1,5 @@
 import detect_peaks as dp
-import nanonis
+from . import nanonis
 #from modules import functions
 import distributions
 import numpy as np
