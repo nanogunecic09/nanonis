@@ -29,7 +29,7 @@ colour_code =cc.glasbey_category10
 #You can use it if you want to follow a peak shifting across different spectra.
 # How to:
 #1) gather filenames in a filenames list
-#2) convert them with dataTodf(filenames) procedure
+#2) convert them with specTodf(filenames) procedure
 #3) use one of the fit_plot type of functions. Input all the parameters and the fit will be executed.
 #4) the output is a list of fit output (lmfit style), you can extract than the parameters you need with one of the extract functions.
 ##########################################
@@ -50,20 +50,23 @@ def cutSpec(x,y,center,interval):
     y = y[startidx:endidx]
     return x, y
 def save_obj(obj, name ):
-    with open('obj/'+ name + '.pkl', 'wb') as f:
+    with open(name + '.pkl', 'wb') as f:
         pickle.dump(obj, f, pickle.HIGHEST_PROTOCOL) 
 def load_obj(name ):
-    with open('obj/' + name + '.pkl', 'rb') as f:
+    with open( name + '.pkl', 'rb') as f:
         return pickle.load(f)
 #converts a series of spectra (from filenames) to a dataframe compatible with the fitting modules
-def specTodf(filenames):
+def specTodf(filenames,offset=0,norm=[-3e-3,3e-3]):
     data = pd.DataFrame()
     count = 0
     for filename in filenames:
         spectra.load(filename)
+        spectra.normalizeRange(norm)
+        spectra.biasOffset(offset)
         if count == 0:
             data[0]=spectra.bias*1e3
-            count += 1
+            data[1]=spectra.conductance
+            count += 2
             continue
         data[count]=spectra.conductance
         count+=1
@@ -82,35 +85,34 @@ def arrayTodf(bias,conductance):
 def fitFunc1g_const(x,y,center,sigma): #1 gaussian with constant background
     model = GaussianModel() + ConstantModel(prefix='bkg_')
     params = model.make_params()
-    params['center'].set(center)
-    params['amplitude'].set(1,min=0)
-    params['sigma'].set(sigma)
-    params['sigma'].set(vary=True)
-    params['bkg_c'].set(2)
+    params['center'].set(center,vary=True)
+    params['amplitude'].set(0.1,min=0,vary=True)
+    params['sigma'].set(sigma,vary=True)
+    params['sigma'].set(vary=True,max=0.1)
+    params['bkg_c'].set(0,vary=True)
     result=model.fit(y,params,x=x)
     return result
 
 def fitFunc1g_para(x,y,center,sigma): #1 gaussian with parabolic background
     model = GaussianModel() + PolynomialModel(2,prefix='bkg_')
     params = model.make_params()
-    params['center'].set(center)
-    params['amplitude'].set(1,min=0)
-    params['sigma'].set(sigma)
-    params['sigma'].set(vary=True)
-    params['bkg_c0'].set(2)
-    params['bkg_c1'].set(2)
-    params['bkg_c2'].set(2)
+    params['center'].set(center,vary=True)
+    params['amplitude'].set(0.1,vary=True)
+    params['sigma'].set(sigma,vary=True)
+    params['bkg_c0'].set(0.1,min=0,vary=True)
+    params['bkg_c1'].set(0)
+    params['bkg_c2'].set(0,vary=False)
     result=model.fit(y,params,x=x)
     return result
 
 def fitFunc1g_lin(x,y,center,sigma): #1 gaussian with parabolic background
     model = GaussianModel() + PolynomialModel(2,prefix='bkg_')
     params = model.make_params()
-    params['center'].set(center)
-    params['amplitude'].set(1,min=0)
-    params['sigma'].set(sigma)
-    params['bkg_c0'].set(1)
-    params['bkg_c1'].set(1)
+    params['center'].set(center,vary=True)
+    params['amplitude'].set(0.1,vary=True)
+    params['sigma'].set(sigma,vary=True)
+    params['bkg_c0'].set(0.1,min=0,vary=True)
+    params['bkg_c1'].set(0,min=0,vary=True)
     params['bkg_c2'].set(0,vary=False)
     result=model.fit(y,params,x=x)
     return result
@@ -143,40 +145,41 @@ def fitFunc2g_const(x,y,c_out,c_in,sigma): #2 gaussians with constant background
     
     params = model.make_params()
     ## Initialize parameters peak1
-    params['out_center'].set(c_out)
-    params['out_amplitude'].set(3, min=0)
-    params['out_sigma'].set(sigma)
+    params['out_center'].set(c_out,vary=True)
+    params['out_amplitude'].set(1, min=0,vary=True)
+    params['out_sigma'].set(sigma,vary=True)
     params['out_sigma'].set(vary=True)
     ## Initialize parameters peak2
-    params['in_center'].set(c_in)
-    params['in_amplitude'].set(3, min=0)
-    params['in_sigma'].set(sigma)
+    params['in_center'].set(c_in,vary=True)
+    params['in_amplitude'].set(1, min=0,vary=True)
+    params['in_sigma'].set(sigma,vary=True)
     params['in_sigma'].set(vary=True)
     ## Initialize parameters constant baseline
-    params['c0'].set(2)
-    params['c1'].set(2)
+    params['c0'].set(0,vary=True)
+    params['c1'].set(0,vary=True)
     result=model.fit(y,params,x=x)
     return result
 
-def fitFunc2l_const(x,y,c_out,c_in,sigma): #2 gaussians with constant background
+def fitFunc2l_const(x,y,c_out,c_in,sigma): #2 lorentzian with constant background
     model = LorentzianModel(prefix='out_')+ LorentzianModel(prefix='in_') + PolynomialModel(1)
-    
     params = model.make_params()
     ## Initialize parameters peak1
     params['out_center'].set(c_out)
     params['out_amplitude'].set(3, min=0)
-    params['out_sigma'].set(sigma)
-    params['out_sigma'].set(vary=True)
+    params['out_sigma'].set(sigma[0])
+    params['out_sigma'].set(vary=False)
     ## Initialize parameters peak2
     params['in_center'].set(c_in)
     params['in_amplitude'].set(3, min=0)
-    params['in_sigma'].set(sigma)
-    params['in_sigma'].set(vary=True)
+    params['in_sigma'].set(sigma[1])
+    params['in_sigma'].set(vary=False)
     ## Initialize parameters constant baseline
     params['c0'].set(2)
     params['c1'].set(2)
     result=model.fit(y,params,x=x)
     return result
+    
+
 ####################################################################################################
 ######################### FUNCTIONS TO PERFORM AND PLOT THE FIT ####################################
 ####################################################################################################
@@ -251,7 +254,7 @@ def fit_plot_Einput(data,energy, interval,sigma,spac,para,plotype):
 ### interval energy range you want to fit centered in centralE
 
 
-#fit with 2 gaussian with linear or parabolic background returning all parameters
+#fit with 2 gaussian or lorentzian with linear or parabolic background returning all parameters
 def fit_plot2gfull(data,centralE,c_out,c_in, interval,sigma,spac,plotype='fullPlot',plotGauss=True,plotfit=True,background='gauss_constant'):
     fig, ax = plt.subplots(1,figsize=[10,5])
     i=0
@@ -298,6 +301,7 @@ def fit_plot2gfull(data,centralE,c_out,c_in, interval,sigma,spac,plotype='fullPl
             fit_res.params['in_center'].stderr = 0
         multifit.append(fit_res.params)
     return multifit
+
 
 
 ####################################################################################################
