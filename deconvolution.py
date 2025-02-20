@@ -1,9 +1,11 @@
+from re import T
 from scipy.signal import savgol_filter
 from scipy.interpolate import interp1d
-from superconductor import BCS_curve, dynes_curve, dynes_curve_diff
+from superconductor import dynes_curve, dynes_curve_diff, dynes_wrong,coulomb,dynesdos, fdd,dynes_javi
 from distributions import fermiDirac, fermiDirac_diff
 import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
 def find_nearest(array,value):
     idx = (np.abs(array-value)).argmin()
     return idx
@@ -49,16 +51,42 @@ def extensions(bias,conductance,x_min,x_max,N):
     conductance=conductance.append(d)
     return [bias,conductance]
 
-def dynesDeconvolute(bias,conductance, gap=1.30e-3, temperature=1.248, dynesParameter=40e-6, energyR=6E-3, spacing=50e-6,x_min=-3.0E-3,x_max=3.0E-3,N=1000, window=15,order=3,n=3000):
+# def dynesDeconvolute(bias,conductance, gap=1.30e-3, temperature=1.248, dynesParameter=40e-6, energyR=6E-3, spacing=50e-6,x_min=-3.0E-3,x_max=3.0E-3,N=1000, window=15,order=3,n=3000):
+#     bias_new=extensions(bias,conductance,x_min,x_max,N)[0]
+#     conductance_n=extensions(bias,conductance,x_min,x_max,N)[1]
+#     conductance_new=savgol_filter(conductance_n,window,order)
+#     x=np.linspace(min(bias_new),max(bias_new),n)
+#     f2 = interp1d(bias_new, conductance_new, kind='cubic')
+#     plt.figure()
+#     plt.plot(x,f2(x))
+#     #dec_bias = np.arange(bias_new[np.round(len(bias_new)/2)]-energyR, bias_new[np.round(len(bias_new)/2)]+energyR, spacing)
+#     dec_bias = np.arange(-energyR,energyR, spacing)
+    
+#     M_E, M_eV = np.meshgrid(dec_bias,x)
+#     M_N = dynes_curve(M_E,gap,dynesParameter)
+#     M_NV = dynes_curve(M_E+M_eV,gap,dynesParameter)
+#     M_dNV = dynes_curve_diff(M_E+M_eV,gap,dynesParameter)
+
+#     M_f = fermiDirac(M_E, temperature)
+#     M_fV = fermiDirac(M_E+M_eV, temperature)
+#     M_dfV = fermiDirac_diff(M_E+M_eV, temperature)
+#     M_g = M_dNV*(M_f-M_fV) - M_NV*M_dfV
+#     M_g_pinv = np.linalg.pinv(M_g)
+#     dec_conductance = np.dot(M_g_pinv,f2(x))
+#     np.savetxt('x.txt',dec_bias)
+#     np.savetxt('y.txt',dec_conductance)
+#     return dec_bias,dec_conductance
+
+def dynesDeconvolute(bias,conductance, gap=1.4E-3, temperature=1.7, dynesParameter=4E-7, energyR=4E-3, spacing=53.5E-5,x_min=-4E-3,x_max=4.0E-3,N=100, window=19,order=15,n=1000):
     bias_new=extensions(bias,conductance,x_min,x_max,N)[0]
     conductance_n=extensions(bias,conductance,x_min,x_max,N)[1]
     conductance_new=savgol_filter(conductance_n,window,order)
     x=np.linspace(min(bias_new),max(bias_new),n)
-    f2 = interp1d(bias_new, conductance_new, kind='cubic') 
-    #dec_bias = np.arange(bias_new[np.round(len(bias_new)/2)]-energyR, bias_new[np.round(len(bias_new)/2)]+energyR, spacing)
-    dec_bias = np.arange(-energyR,energyR, spacing)
+    f2 = interp1d(bias_new, conductance_new, kind='cubic')
+    #deconvolutionBias = np.arange(bias_new[np.round(len(bias_new)/2)]-energyR, bias_new[np.round(len(bias_new)/2)]+energyR, spacing)
+    deconvolutionBias = np.arange(-energyR,energyR, spacing)
     
-    M_E, M_eV = np.meshgrid(dec_bias,x)
+    M_E, M_eV = np.meshgrid(deconvolutionBias,x)
     M_N = dynes_curve(M_E,gap,dynesParameter)
     M_NV = dynes_curve(M_E+M_eV,gap,dynesParameter)
     M_dNV = dynes_curve_diff(M_E+M_eV,gap,dynesParameter)
@@ -66,10 +94,13 @@ def dynesDeconvolute(bias,conductance, gap=1.30e-3, temperature=1.248, dynesPara
     M_f = fermiDirac(M_E, temperature)
     M_fV = fermiDirac(M_E+M_eV, temperature)
     M_dfV = fermiDirac_diff(M_E+M_eV, temperature)
+
     M_g = M_dNV*(M_f-M_fV) - M_NV*M_dfV
     M_g_pinv = np.linalg.pinv(M_g)
-    dec_conductance = np.dot(M_g_pinv,f2(x))
-    return dec_bias,dec_conductance
+    deconvolutionConductance = np.dot(M_g_pinv,f2(x))
+    return deconvolutionBias,deconvolutionConductance
+
+
 
 def dynesDeconvolute_nof(bias,conductance,gap=1.25e-3, temperature=1.7, dynesParameter=40E-6, energyR=6E-3, spacing = 30e-6,x_min=-2.0E-3,x_max=2.0E-3,N=100):
     bias_new=extensions(bias,conductance,x_min,x_max,N)[0]
@@ -95,3 +126,41 @@ def dynesDeconvolute_nof(bias,conductance,gap=1.25e-3, temperature=1.7, dynesPar
     dec_conductance = np.dot(M_g_pinv,conductance_new)
     #g_reconv = np.dot(M_g,deconvolutionConductance)
     return dec_bias,dec_conductance
+
+
+
+def coulombDeconvolute_nof(bias,conductance,T,R2,C1,C2,Q0, energyR=6E-3, spacing = 30e-6,x_min=-2.0E-3,x_max=2.0E-3,N=100):
+    bias_new=extensions(bias,conductance,x_min,x_max,N)[0]
+    conductance_new=extensions(bias,conductance,x_min,x_max,N)[1]
+
+    #deconvolutionBias = np.arange(bias_new[np.round(len(bias_new)/2)]-energyR, bias_new[np.round(len(bias_new)/2)]+energyR, spacing)
+    dec_bias = np.arange(-energyR,energyR, spacing)
+    
+    M_E, M_eV = np.meshgrid(dec_bias,bias_new)
+    #print(conductance_new)
+
+    M_NV = coulomb(R2,C1,C2,Q0)
+    #M_dN = dynes_curve_diff(M_E,gap,dynesParameter)
+    M_dNV = coulomb(R2,C1,C2,Q0)
+
+    M_f = fermiDirac(M_E, T)
+    M_fV = fermiDirac(M_E+M_eV, T)
+    #M_df = fermiDirac_diff(M_E, temperature)
+    M_dfV = fermiDirac_diff(M_E+M_eV, T)
+    M_g = M_dNV*(M_f-M_fV) - M_NV*M_dfV
+    #g_conv = np.trapz((M_g*M_N),deconvolutionBias)
+    M_g_pinv = np.linalg.pinv(M_g)
+    dec_conductance = np.dot(M_g_pinv,conductance_new)
+    #g_reconv = np.dot(M_g,deconvolutionConductance)
+    return dec_bias,dec_conductance
+
+
+
+def dynesConvolute(V,E_int,conductance,delta,T,gamma):
+    curr = []
+    for Vp in V:
+        currp = np.trapz((conductance)*dynesdos(E_int-Vp,gamma,delta)*(fdd(E_int, Vp, T)-fdd(E_int,0, T)),x=E_int)
+        curr.append(currp)
+    return np.gradient(np.array(curr))
+
+

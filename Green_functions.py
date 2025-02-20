@@ -3,6 +3,7 @@ import scipy.special as scisp
 import scipy.integrate as integ
 import mpmath
 from scipy import constants as const
+from scipy import integrate
 ##  THIS PROGRAME IS A MODULE TO CALCULATE THE EXPRESSION FOR BCS REAL SPACE GREEN'S FUNCTIONS ##
 ##  IT ALSO CALCULATES THE PERTURBED SHIBA STATE GREEN'S FUNCTIONS ##
 
@@ -33,10 +34,10 @@ class Green:
         if mode==0:
             ## mode=0 is for the spherical Fermi surface ##
             ## for this mode x1 is the radial distance and x2 is the angle ##
-            u=np.complex(x1*pf,x1*m*w/(pf))
+            u=np.complex(x1*pf , x1*m*w/(pf))
             a=scisp.jv(0,u) #bessel function 0th order u=argument
             b=mpmath.struveh(0,u) #gives the struve function
-            self.G0=-m/2*(np.complex(np.real(a+np.complex(0,1)*b),0))*BCS+m/2*(np.complex(np.imag(a+np.complex(0,1)*b),0))*xi
+            self.G0=-m/2*(np.complex(np.real(a+np.complex(0,1)*b),0))*BCS + m/2*(np.complex(np.imag(a+np.complex(0,1)*b),0)) * xi
 
         if mode==1:
             ## mode=1 is for the square-like fermi surface ##
@@ -45,13 +46,11 @@ class Green:
                 G1=(2*m/np.pi)*BCS
                 G2=0.0
             elif np.abs(x2)<0.00001:
-                G1=(np.exp(-(m*w/pf)*np.abs(x1))*( (1/np.abs(x1))*pf*np.sin(pf*(np.abs(x1)))+(pf**2)*np.cos(pf*np.abs(x1)) ) )*(m/(np.pi*pf**2))*BCS
+                G1=(np.exp(-(m*w/pf)*np.abs(x1))*( (1/np.abs(x1))*pf*np.sin(pf*(np.abs(x1))) + (pf**2)*np.cos(pf*np.abs(x1)) ) ) * (m/(np.pi*pf**2))*BCS
                 G2=(np.exp(-(m*w/pf)*np.abs(x1))*( (1/np.abs(x1))*pf*np.cos(pf*(np.abs(x1)))+(pf**2)*np.sin(pf*np.abs(x1)) ) -pf/np.abs(x1))*(m/(np.pi*pf**2))*xi
             elif np.abs(x1)<0.00001:
                 G1=(np.exp(-(m*w/pf)*np.abs(x2))*( (1/np.abs(x2))*pf*np.sin(pf*(np.abs(x2)))+(pf**2)*np.cos(pf*np.abs(x2)) ) )*(m/(np.pi*pf**2))*BCS
                 G2=(np.exp(-(m*w/pf)*np.abs(x2))*( (1/np.abs(x2))*pf*np.cos(pf*(np.abs(x2)))+(pf**2)*np.sin(pf*np.abs(x2)) ) -pf/np.abs(x2))*(m/(np.pi*pf**2))*xi
-            
-            
             elif x1+x2>=0.00001 and x1-x2>=0.00001:
                 G1=(np.exp(-(m*w/pf)*(x1+x2))*(1/x1+1/x2)*pf*np.sin(pf*(x1+x2))+np.exp(-(m*w/pf)*(x1-x2))*(1/x1-1/x2)*pf*np.sin(pf*(x1-x2)) )*(m/(2*np.pi*pf**2))*BCS
                 G2=(np.exp(-(m*w/pf)*(x1+x2))*(1/x1+1/x2)*pf*np.cos(pf*(x1+x2))+np.exp(-(m*w/pf)*(x1-x2))*(1/x1-1/x2)*pf*np.cos(pf*(x1-x2)) -2*pf/x1)*(m/(2*np.pi*pf**2))*xi
@@ -150,6 +149,256 @@ class Green:
             tempg2=self.G0
             self.definitions(En,x_atom,y_atom,J1,J2,alpha,delta,m,pf,2)
             self.deltaG=np.dot(np.dot(tempg1,self.A ),np.dot(self.zeta11,tempg1) + np.dot(self.zeta12,tempg2) )+ np.dot( np.dot( tempg2 , self.B) , np.dot(self.zeta22,tempg2) + np.dot(self.zeta21,tempg1 ) )
+
+
+class nYSR_sq: # loading of G0 implemented
+    def __init__(self,E,J,theta,r_,r__,U=0,m=20.956,pf=0.274,delta=0.0000287,mode=0,sG0=False,p1=0,p2=0,p3=0):
+        self.s0 = np.array([[1,0],[0,1]])
+        self.s1 = np.array([[0,1],[1,0]])
+        self.s3 = np.array([[1,0],[0,-1]])
+        self.theta_ = theta # theta of the spins
+        self.J_ = J # J of the atoms in order
+        self.r__ = r__ #atomic positions
+        self.N = len(r__)
+        self.U_ = np.zeros(self.N) + U # potential scattering
+        self.m = m # mass electron
+        self.pf = pf # fermi momentum
+        self.delta = delta # delta superconductor
+        self.r_ = r_ #measurement point
+        self.E = E
+        self.mode = mode
+        #initialize G0#
+        if sG0 == True:
+            self.G00 = p1
+            self.G0_r_r__ = p2
+            self.G0_r__r__ = p3
+        else:
+            self.G00 = self.G0((0,0),(0,0),self.E)
+            self.G0_r__r__calc(self.E)
+            self.G0_r_r__calc(self.E)
+
+    def G0(self,r1,r2,E):
+        delta = self.delta
+        w = np.sqrt(delta**2-E**2)
+        m=self.m
+        pf=self.pf
+        BCS = E/w*np.kron(self.s0,self.s0) + delta/w*np.kron(self.s1,self.s0)
+        xi=np.kron(self.s3,self.s0)
+        if self.mode==0:
+            x = r1[0]-r2[0]
+            y = r1[1]-r2[1]
+            x1 = np.sqrt(x**2+y**2)
+            ## mode=0 is for the spherical Fermi surface ##
+            ## for this mode x1 is the radial distance and x2 is the angle ##
+            u=np.complex(x1*pf , x1*m*w/(pf))
+            a=scisp.jv(0,u) #bessel function 0th order u=argument
+            b=complex(mpmath.struveh(0,u)) #gives the struve function
+            G0=-m/2*(np.complex(np.real(a+np.complex(0,1)*b),0))*BCS + m/2*(np.complex(np.imag(a+np.complex(0,1)*b),0)) * xi
+     
+        if self.mode==1:
+            x1=r1[0]-r2[0]
+            x2=r1[1]-r2[1]
+            delta = self.delta
+            m=self.m
+            pf=self.pf
+            if np.abs(x1)<0.00001 and np.abs(x2)<0.00001:
+                    G1=(2*m/np.pi)*BCS
+                    G2=0.0
+            elif np.abs(x2)<0.00001:
+                G1=(np.exp(-(m*w/pf)*np.abs(x1))*( (1/np.abs(x1))*pf*np.sin(pf*(np.abs(x1)))+(pf**2)*np.cos(pf*np.abs(x1)) ) )*(m/(np.pi*pf**2))*BCS
+                G2=(np.exp(-(m*w/pf)*np.abs(x1))*( (1/np.abs(x1))*pf*np.cos(pf*(np.abs(x1)))+(pf**2)*np.sin(pf*np.abs(x1)) ) -pf/np.abs(x1))*(m/(np.pi*pf**2))*xi
+            elif np.abs(x1)<0.00001:
+                G1=(np.exp(-(m*w/pf)*np.abs(x2))*( (1/np.abs(x2))*pf*np.sin(pf*(np.abs(x2)))+(pf**2)*np.cos(pf*np.abs(x2)) ) )*(m/(np.pi*pf**2))*BCS
+                G2=(np.exp(-(m*w/pf)*np.abs(x2))*( (1/np.abs(x2))*pf*np.cos(pf*(np.abs(x2)))+(pf**2)*np.sin(pf*np.abs(x2)) ) -pf/np.abs(x2))*(m/(np.pi*pf**2))*xi
+            elif x1+x2>=0.00001 and x1-x2>=0.00001:
+                G1=(np.exp(-(m*w/pf)*(x1+x2))*(1/x1+1/x2)*pf*np.sin(pf*(x1+x2))+np.exp(-(m*w/pf)*(x1-x2))*(1/x1-1/x2)*pf*np.sin(pf*(x1-x2)) )*(m/(2*np.pi*pf**2))*BCS
+                G2=(np.exp(-(m*w/pf)*(x1+x2))*(1/x1+1/x2)*pf*np.cos(pf*(x1+x2))+np.exp(-(m*w/pf)*(x1-x2))*(1/x1-1/x2)*pf*np.cos(pf*(x1-x2)) -2*pf/x1)*(m/(2*np.pi*pf**2))*xi
+            elif x1+x2>0.00001 and x1-x2<0.00001:
+                G1=(np.exp(-(m*w/pf)*(x1+x2))*(1/x1+1/x2)*pf*np.sin(pf*(x1+x2))+np.exp(-(m*w/pf)*(x2-x1))*(1/x2-1/x1)*pf*np.sin(pf*(x2-x1)) )*(m/(2*np.pi*pf**2))*BCS
+                G2=(np.exp(-(m*w/pf)*(x1+x2))*(1/x1+1/x2)*pf*np.cos(pf*(x1+x2))+np.exp(-(m*w/pf)*(x2-x1))*(1/x2-1/x1)*pf*np.cos(pf*(x2-x1)) -2*pf/x2)*(m/(2*np.pi*pf**2))*xi
+            elif x1+x2<=0.00001 and x1-x2<=0.00001:
+                G1=(np.exp((m*w/pf)*(x1+x2))*(-1/x1-1/x2)*pf*np.sin(pf*(-x1-x2))+np.exp(-(m*w/pf)*(-x1+x2))*(-1/x1+1/x2)*pf*np.sin(pf*(-x1+x2)) )*(m/(2*np.pi*pf**2))*BCS
+                G2=(np.exp((m*w/pf)*(x1+x2))*(-1/x1-1/x2)*pf*np.cos(pf*(-x1-x2))+np.exp(-(m*w/pf)*(-x1+x2))*(-1/x1+1/x2)*pf*np.cos(pf*(-x1+x2)) +2*pf/x1)*(m/(2*np.pi*pf**2))*xi
+            elif x1+x2<0.00001 and x1-x2>0.00001:
+                G1=(np.exp((m*w/pf)*(x1+x2))*(-1/x1-1/x2)*pf*np.sin(pf*(-x1-x2))+np.exp(-(m*w/pf)*(-x2+x1))*(-1/x2+1/x1)*pf*np.sin(pf*(-x2+x1)) )*(m/(2*np.pi*pf**2))*BCS
+                G2=(np.exp((m*w/pf)*(x1+x2))*(-1/x1-1/x2)*pf*np.cos(pf*(-x1-x2))+np.exp(-(m*w/pf)*(-x2+x1))*(-1/x2+1/x1)*pf*np.cos(pf*(-x2+x1)) +2*pf/x2)*(m/(2*np.pi*pf**2))*xi
+            G0 = G1+G2
+        return G0
+
+    def G0_r__r__calc(self,E): #4nx4n matrix with basis aroms*atoms
+        n=self.N
+        self.G0_r__r__ = np.zeros((4*n,4*n),dtype=np.complex_)
+        for i in range(0,4*n,4):
+            for j in range(0,4*n,4):
+                self.G0_r__r__[i:i+4,j:j+4] = self.G0(self.r__[i//4],self.r__[j//4],E)
+                
+    def G0_r_r__calc(self,E): # 4n*4 matrix with basis r_n*atoms
+        self.G0_r_r__ = np.zeros((4*self.N,4),dtype=complex)
+        n=0
+        for i in range(0,4*self.N,4):
+            self.G0_r_r__[i:i+4,0:4] = self.G0(self.r_,self.r__[n],E)
+            n+=1
+    
+    def V(self,theta,J,U):
+        return J * np.cos(theta)*np.kron(self.s0,self.s3) + J*np.sin(theta)*np.kron(self.s0,self.s1) + U*np.kron(self.s3,self.s0)
+
+    def M_calc(self):
+        n=self.N
+        M = np.zeros((4*n,4*n),dtype=complex)
+        for i in range(0,4*n,4):
+            for j in range(0,4*n,4):
+                M[i:i+4,j:j+4] = np.dot(self.G0_r__r__[i:i+4,j:j+4],self.V(self.theta_[j//4],self.J_[j//4],self.U_[j//4]))
+        return M
+
+    def G(self):
+        MM = np.linalg.inv(np.identity(self.N*4,dtype=complex)-self.M_calc())
+        GG = np.dot(MM,self.G0_r_r__)
+        G = self.G00
+        n=0
+        for i in range(0,4*self.N,4):
+            G = G + np.dot(np.dot(self.G0_r_r__[i:i+4,0:4] , self.V(self.theta_[n] ,self.J_[n],self.U_[n])), GG[i:i+4,0:4])
+            n+=1
+        return G
+
+    def DOS(self):
+        return np.imag(np.trace(self.G()))
+
+    def ElecDOS(self):
+        return np.imag(np.trace(np.dot(self.G(),np.diag((1,1,0,0)))))
+
+    def HoleDOS(self):
+        return np.imag(np.trace(np.dot(self.G(),np.diag((0,0,1,1)))))
+    
+    def SpinUpDOS(self): # calculate the projection of the spin along Sz
+        return np.imag(np.trace(np.dot(self.G(),np.diag((1,-1,1,-1)))))
+
+    def BCS(self,delta):
+        w = np.sqrt(delta**2-self.E**2)
+        A = self.E/w*np.kron(self.s0,self.s0) + delta/w*np.kron(self.s1,self.s0)
+        return np.real(np.trace(A))
+    
+class spin5_sq():
+
+    def __init__(self,N,J,theta,r__,U=0,m=20.956,pf=0.274,delta=0.0000287,gamma=40e-6,mode=1):
+        self.N = N
+        self.s0 = np.array([[1,0],[0,1]])
+        self.s1 = np.array([[0,1],[1,0]])
+        self.s3 = np.array([[1,0],[0,-1]])
+        self.theta_ = theta # theta of the spins
+        self.J_ = J # J of the atoms in order
+        self.U_ = U # potential scattering
+        self.r__ = r__ #atomic positions
+        self.m = m # mass electron
+        self.pf = pf # fermi momentum
+        self.delta = delta # delta superconductor
+        self.gamma = gamma
+        self.mode = mode
+    def G0(self,r1,r2,E):
+        delta = self.delta
+        w = np.sqrt(delta**2-E**2)
+        m=self.m
+        pf=self.pf
+        BCS = E/w*np.kron(self.s0,self.s0) + delta/w*np.kron(self.s1,self.s0)
+        xi=np.kron(self.s3,self.s0)
+        if self.mode==0:
+            x = r1[0]-r2[0]
+            y = r1[1]-r2[1]
+            x1 = np.sqrt(x**2+y**2)
+            ## mode=0 is for the spherical Fermi surface ##
+            ## for this mode x1 is the radial distance and x2 is the angle ##
+            u=np.complex(x1*pf , x1*m*w/(pf))
+            a=scisp.jv(0,u) #bessel function 0th order u=argument
+            b=complex(mpmath.struveh(0,u)) #gives the struve function
+            G0=-m/2*(np.complex(np.real(a+np.complex(0,1)*b),0))*BCS + m/2*(np.complex(np.imag(a+np.complex(0,1)*b),0)) * xi
+     
+        if self.mode==1:
+            x1=r1[0]-r2[0]
+            x2=r1[1]-r2[1]
+            delta = self.delta
+            m=self.m
+            pf=self.pf
+            if np.abs(x1)<0.00001 and np.abs(x2)<0.00001:
+                    G1=(2*m/np.pi)*BCS
+                    G2=0.0
+            elif np.abs(x2)<0.00001:
+                G1=(np.exp(-(m*w/pf)*np.abs(x1))*( (1/np.abs(x1))*pf*np.sin(pf*(np.abs(x1)))+(pf**2)*np.cos(pf*np.abs(x1)) ) )*(m/(np.pi*pf**2))*BCS
+                G2=(np.exp(-(m*w/pf)*np.abs(x1))*( (1/np.abs(x1))*pf*np.cos(pf*(np.abs(x1)))+(pf**2)*np.sin(pf*np.abs(x1)) ) -pf/np.abs(x1))*(m/(np.pi*pf**2))*xi
+            elif np.abs(x1)<0.00001:
+                G1=(np.exp(-(m*w/pf)*np.abs(x2))*( (1/np.abs(x2))*pf*np.sin(pf*(np.abs(x2)))+(pf**2)*np.cos(pf*np.abs(x2)) ) )*(m/(np.pi*pf**2))*BCS
+                G2=(np.exp(-(m*w/pf)*np.abs(x2))*( (1/np.abs(x2))*pf*np.cos(pf*(np.abs(x2)))+(pf**2)*np.sin(pf*np.abs(x2)) ) -pf/np.abs(x2))*(m/(np.pi*pf**2))*xi
+            elif x1+x2>=0.00001 and x1-x2>=0.00001:
+                G1=(np.exp(-(m*w/pf)*(x1+x2))*(1/x1+1/x2)*pf*np.sin(pf*(x1+x2))+np.exp(-(m*w/pf)*(x1-x2))*(1/x1-1/x2)*pf*np.sin(pf*(x1-x2)) )*(m/(2*np.pi*pf**2))*BCS
+                G2=(np.exp(-(m*w/pf)*(x1+x2))*(1/x1+1/x2)*pf*np.cos(pf*(x1+x2))+np.exp(-(m*w/pf)*(x1-x2))*(1/x1-1/x2)*pf*np.cos(pf*(x1-x2)) -2*pf/x1)*(m/(2*np.pi*pf**2))*xi
+            elif x1+x2>0.00001 and x1-x2<0.00001:
+                G1=(np.exp(-(m*w/pf)*(x1+x2))*(1/x1+1/x2)*pf*np.sin(pf*(x1+x2))+np.exp(-(m*w/pf)*(x2-x1))*(1/x2-1/x1)*pf*np.sin(pf*(x2-x1)) )*(m/(2*np.pi*pf**2))*BCS
+                G2=(np.exp(-(m*w/pf)*(x1+x2))*(1/x1+1/x2)*pf*np.cos(pf*(x1+x2))+np.exp(-(m*w/pf)*(x2-x1))*(1/x2-1/x1)*pf*np.cos(pf*(x2-x1)) -2*pf/x2)*(m/(2*np.pi*pf**2))*xi
+            elif x1+x2<=0.00001 and x1-x2<=0.00001:
+                G1=(np.exp((m*w/pf)*(x1+x2))*(-1/x1-1/x2)*pf*np.sin(pf*(-x1-x2))+np.exp(-(m*w/pf)*(-x1+x2))*(-1/x1+1/x2)*pf*np.sin(pf*(-x1+x2)) )*(m/(2*np.pi*pf**2))*BCS
+                G2=(np.exp((m*w/pf)*(x1+x2))*(-1/x1-1/x2)*pf*np.cos(pf*(-x1-x2))+np.exp(-(m*w/pf)*(-x1+x2))*(-1/x1+1/x2)*pf*np.cos(pf*(-x1+x2)) +2*pf/x1)*(m/(2*np.pi*pf**2))*xi
+            elif x1+x2<0.00001 and x1-x2>0.00001:
+                G1=(np.exp((m*w/pf)*(x1+x2))*(-1/x1-1/x2)*pf*np.sin(pf*(-x1-x2))+np.exp(-(m*w/pf)*(-x2+x1))*(-1/x2+1/x1)*pf*np.sin(pf*(-x2+x1)) )*(m/(2*np.pi*pf**2))*BCS
+                G2=(np.exp((m*w/pf)*(x1+x2))*(-1/x1-1/x2)*pf*np.cos(pf*(-x1-x2))+np.exp(-(m*w/pf)*(-x2+x1))*(-1/x2+1/x1)*pf*np.cos(pf*(-x2+x1)) +2*pf/x2)*(m/(2*np.pi*pf**2))*xi
+            G0 = G1+G2
+        return G0
+    
+    def V(self,theta,J,U):
+        return J * np.cos(theta)*np.kron(self.s0,self.s3) + J*np.sin(theta)*np.kron(self.s0,self.s1) + U*np.kron(self.s3,self.s0)
+    
+    def M(self,E):
+        n=self.N
+        M = np.zeros((4*n,4*n),dtype=complex)
+        for i in range(0,4*n,4):
+            for j in range(0,4*n,4):
+                M[i:i+4,j:j+4] = np.dot(self.G0(self.r__[i//4],self.r__[j//4],E),self.V(self.theta_[j//4],self.J_[j//4],self.U_[j//4]))
+        return M
+
+    def G0_(self,r_,E):
+        G0_ = np.zeros((4*self.N,4),dtype=complex)
+        n=0
+        for i in range(0,4*self.N,4):
+            G0_[i:i+4,0:4] = self.G0(self.r__[n],r_,E)
+            n+=1
+        return G0_
+    
+    def G(self,r_,E):
+        MM = np.linalg.inv(np.identity(self.N*4,dtype=complex)-self.M(E))
+        GG = np.dot(MM,self.G0_(r_,E))
+        G = np.zeros((4,4),dtype=complex)
+        G += self.G0((0,0),(0,0),E)
+        n=0
+        for i in range(0,4*self.N,4):
+            G += np.dot(np.dot( self.G0(r_,self.r__[n],E) , self.V(self.theta_[n] ,self.J_[n],self.U_[n])), GG[i:i+4,0:4])
+            n+=1
+        return G
+
+    def DOS(self,r_,E):
+        return np.imag(np.trace(self.G(r_,E)))
+
+    def ElecDOS(self,r_,E):
+        return np.imag(np.trace(np.dot(self.G(r_,E),np.diag((1,1,0,0)))))
+
+    def HoleDOS(self,r_,E):
+        return np.imag(np.trace(np.dot(self.G(r_,E),np.diag((0,0,1,1)))))
+
+    def rhoss(self,L,E):
+        self.JL_ = self.J_*L
+        rhoss = 0
+        for n in range(0,self.N):
+            G = -np.imag(self.G(self.r__[n],E))
+            rhoss += self.JL_[n]*( (G[0,0]-G[1,1]) * np.cos(self.theta_[n]) + (G[1,0]-G[0,1]) * np.sin(self.theta_[n]) )
+        return rhoss
+    def spectra(self,r_):
+        c = const.physical_constants['Hartree energy'][0]/const.e
+        E = np.linspace(-4*self.delta ,4*self.delta,300)/c
+        spectra=[]
+        for i in E:
+            spectra.append(np.sign(i)*self.DOS( r_, i + self.gamma*1j*np.sign(i)/c))
+        return spectra
+
+    def rho4(self,r_,E):
+        return np.imag(self.G(r_,E))
+    
+
 
 import time
 import numpy as np
@@ -486,7 +735,8 @@ class simulation(Green):
         self.figure = plt.figure(figsize = (5,5))
         self.figure.subplots_adjust(bottom=0.3)
         self.axMap = self.figure.add_subplot(111)
-
+        extent=None
+        aspect=None
         if type == 'xyMap':
             extent = [self.x[0],self.x[-1],self.y[0],self.y[-1]]
             aspect = None
@@ -525,7 +775,7 @@ class simulation(Green):
             aspect = 'auto'
             A = np.fliplr(np.rot90(self.map))
 
-        self.im1 = self.axMap.imshow(A/np.max(A),extent=extent,aspect=aspect,interpolation='nearest',cmap='Blues')
+        self.im1 = self.axMap.imshow(A,extent=extent,aspect=aspect,interpolation='nearest',cmap='Blues')
         if slider == 'on':
 
             self.axmin = self.figure.add_axes([0.15, 0.1, 0.65, 0.03])
