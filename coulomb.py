@@ -137,7 +137,7 @@ import nanonis
 
 spectra = nanonis.biasSpectroscopy()
 
-def fitter(fname,initial_params,off=0):
+def fitter(fname,initial_params=None,off=0):
     fnames = fname
     if initial_params == None:
             p = {'R1': 1000,

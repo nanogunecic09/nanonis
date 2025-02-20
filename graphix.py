@@ -787,11 +787,15 @@ class grid():
                 self.conductance = np.flipud(self.gridraw.data['LIX 1 omega (A)'][:,:,0])
             if 'SRX (V)' in self.gridraw.data:
                 self.conductance = np.flipud(self.gridraw.data['SRX (V)'][:,:,0])
+            if 'LI Demod 1 X (A)' in self.gridraw.data:
+                self.conductance = np.flipud(self.gridraw.data['LI Demod 1 X (A)'][:,:,0])
         else:
             if 'LIX 1 omega (A)' in self.gridraw.data:
                 self.conductance = self.gridraw.data['LIX 1 omega (A)'][:,:,0]
-            if 'SRX (V)' in self.gridraw.data:
-                self.conductance = self.gridraw.data['SRX (V)'][:,:,0]
+            if 'LIX 1 omega (A)' in self.gridraw.data:
+                self.conductance = self.gridraw.data['LIX 1 omega (A)'][:,:,0]
+            if 'LI Demod 1 X (A)' in self.gridraw.data:
+                self.conductance = self.gridraw.data['LI Demod 1 X (A)'][:,:,0]
         self.smin_slider = Slider(self.ax2, 'Min', self.conductance.min(), self.conductance.max(), valinit =self.conductance.min())
         self.smax_slider = Slider(self.ax3, 'Max', self.conductance.min(), self.conductance.max(), valinit =self.conductance.max()*0.5)            
         self.energyCut_slider.on_changed(self.update_energy)
@@ -864,11 +868,15 @@ class grid():
                 self.conductance = np.flipud(self.gridraw.data['LIX 1 omega (A)'][:,:,self.cutIdx])
             if 'SRX (V)' in self.gridraw.data:
                 self.conductance = np.flipud(self.gridraw.data['SRX (V)'][:,:,self.cutIdx])
+            if 'LI Demod 1 X (A)' in self.gridraw.data:
+                self.conductance = np.flipud(self.gridraw.data['LI Demod 1 X (A)'][:,:,self.cutIdx])
         else:
             if 'LIX 1 omega (A)' in self.gridraw.data:
                 self.conductance = self.gridraw.data['LIX 1 omega (A)'][:,:,self.cutIdx]
-            if 'SRX (V)' in self.gridraw.data:
-                self.conductance = self.gridraw.data['SRX (V)'][:,:,self.cutIdx]
+            if 'LIX 1 omega (A)' in self.gridraw.data:
+                self.conductance = self.gridraw.data['LIX 1 omega (A)'][:,:,self.cutIdx]
+            if 'LI Demod 1 X (A)' in self.gridraw.data:
+                self.conductance = self.gridraw.data['LI Demod 1 X (A)'][:,:,self.cutIdx]
         self.im1.set_data(self.conductance)
         self.im1.set_clim(np.min(self.conductance),np.max(self.conductance))
         self.label.set_text('{} mV'.format(np.round(val,2)))
