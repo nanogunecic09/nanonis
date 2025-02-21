@@ -9,7 +9,6 @@ from matplotlib.figure import Figure, Artist
 
 plt.rcParams['lines.linewidth'] = 1.0
 plt.rcParams['font.family'] = 'sans-serif'
-plt.rcParams['font.sans-serif'] = 'Arial'
 plt.rcParams['font.size'] = 10
 plt.use('Qt5Agg')
 

@@ -15,7 +15,7 @@ import pandas as pd
 import colorcet as cc
 # from lmfit import Model
 from scipy import stats
-import useful as uf
+from nanonis import useful as uf
 #added: now the linescans cuts save properly in order
 #       new class for the lineprofile cuts, given a folder with cuts it plot them
 #       new class for plotting general image with sliders

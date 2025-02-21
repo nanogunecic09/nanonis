@@ -1,0 +1,16 @@
+[tool.poetry]
+name = "nanonis"
+version = "1.2.0"
+description = "python module for treating nanonis data"
+authors = ["stefanotriv <stm@nanogune.eu>"]
+readme = "README.md"
+license = "MIT"
+homepage = "https://github.com/nanogunecic09/nanonis"
+packages = [{ include = "nanonis", from = "." }]
+[tool.poetry.dependencies]
+python = "^3.9"
+lmfit = "^0.9.14"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
