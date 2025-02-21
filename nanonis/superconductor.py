@@ -3,7 +3,7 @@
 
 import numpy as np
 from scipy import signal
-from lmfit import Model
+# from lmfit import Model
 import nanonis
 import matplotlib.pyplot as plt
 import scipy.constants as const

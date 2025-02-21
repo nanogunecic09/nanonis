@@ -13,7 +13,7 @@ from matplotlib.widgets import Slider
 import os
 import pandas as pd
 import colorcet as cc
-from lmfit import Model
+# from lmfit import Model
 from scipy import stats
 import useful as uf
 #added: now the linescans cuts save properly in order
@@ -604,36 +604,36 @@ class LScut():
             self.cuttedData = self.data.iloc[:idx,:]
         return
 
-    def autoFit(self):
-        if self.side == 'positive':
-            model = Model(self.oscFuncpos1)
-            params = model.make_params()
-            params['A1'].set(self.A1,vary=True)
-            params['A2'].set(self.A2,vary=True)
-            params['k1'].set(self.k1,vary=False)
-            params['k2'].set(self.k2,vary=True)
-            params['c1'].set(self.c1,vary=False)
-            params['c2'].set(self.c2,vary=False)
-            params['p1'].set(self.p1,vary=True)
-            params['p2'].set(self.p2,vary=True)
-            params['t'].set( self.t ,vary=False)
-            params['i'].set( self.i ,vary=False)
-        if self.side == 'negative':
-            model = Model(self.oscFuncneg1)
-            params = model.make_params()
-            params['A1'].set(self.A1,vary=True)
-            params['A2'].set(self.A2,vary=True)
-            params['k1'].set(self.k1,vary=False)
-            params['k2'].set(self.k2,vary=True)
-            params['c1'].set(self.c1,vary=False)
-            params['c2'].set(self.c2,vary=False)
-            params['p1'].set(self.p1,vary=True)
-            params['p2'].set(self.p2,vary=True)
-            params['t'].set( self.t ,vary=False)
-            params['i'].set( self.i ,vary=True)
-        self.fitResult = model.fit(self.cuttedData[1],x=self.cuttedData[0],params=params)
+    # def autoFit(self):
+    #     if self.side == 'positive':
+    #         model = Model(self.oscFuncpos1)
+    #         params = model.make_params()
+    #         params['A1'].set(self.A1,vary=True)
+    #         params['A2'].set(self.A2,vary=True)
+    #         params['k1'].set(self.k1,vary=False)
+    #         params['k2'].set(self.k2,vary=True)
+    #         params['c1'].set(self.c1,vary=False)
+    #         params['c2'].set(self.c2,vary=False)
+    #         params['p1'].set(self.p1,vary=True)
+    #         params['p2'].set(self.p2,vary=True)
+    #         params['t'].set( self.t ,vary=False)
+    #         params['i'].set( self.i ,vary=False)
+    #     if self.side == 'negative':
+    #         model = Model(self.oscFuncneg1)
+    #         params = model.make_params()
+    #         params['A1'].set(self.A1,vary=True)
+    #         params['A2'].set(self.A2,vary=True)
+    #         params['k1'].set(self.k1,vary=False)
+    #         params['k2'].set(self.k2,vary=True)
+    #         params['c1'].set(self.c1,vary=False)
+    #         params['c2'].set(self.c2,vary=False)
+    #         params['p1'].set(self.p1,vary=True)
+    #         params['p2'].set(self.p2,vary=True)
+    #         params['t'].set( self.t ,vary=False)
+    #         params['i'].set( self.i ,vary=True)
+    #     self.fitResult = model.fit(self.cuttedData[1],x=self.cuttedData[0],params=params)
 
-        return 
+    #     return 
 
     def plotfitResults(self):
         plt.figure()

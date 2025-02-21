@@ -5,7 +5,7 @@ from scipy import constants as const
 import sys
 sys.path.append('C:/Users/strivini/OneDrive - Asociacion Cic Nanogune/PhD LOWTSTM/Python/Modules_lastversion')
 import nanonis
-from lmfit import Model
+# from lmfit import Model
 ##  THIS PROGRAM IS A MODULE TO CALCULATE THE EXPRESSION FOR BCS REAL SPACE GREEN'S FUNCTIONS ##
 ##  IT ALSO CALCULATES THE PERTURBED SHIBA STATE GREEN'S FUNCTIONS ##
 
@@ -1033,18 +1033,18 @@ class fitspec(Green):
         didv = didv/didv[0]
         return norm*didv
 
-    def fitModel(self):
-        model = Model(self.dynesConvT)
-        params = model.make_params()
-        params['Gammas'].set(self.Gammas,vary=True)
-        params['Gammat'].set(self.Gammat,vary=False)
-        params['alpha'].set(self.alpha,vary=False,min=0,max=np.pi)
-        params['norm'].set(self.norm)
+    # def fitModel(self):
+    #     model = Model(self.dynesConvT)
+    #     params = model.make_params()
+    #     params['Gammas'].set(self.Gammas,vary=True)
+    #     params['Gammat'].set(self.Gammat,vary=False)
+    #     params['alpha'].set(self.alpha,vary=False,min=0,max=np.pi)
+    #     params['norm'].set(self.norm)
 
         
-        #perform fit
-        self.fit_res  = model.fit(self.spectra.conductance,params,bias=self.Vn)
-        self.fit_res_eval = self.fit_res.eval(x=self.spectra.bias)
+    #     #perform fit
+    #     self.fit_res  = model.fit(self.spectra.conductance,params,bias=self.Vn)
+    #     self.fit_res_eval = self.fit_res.eval(x=self.spectra.bias)
 
 
     def showResults(self):

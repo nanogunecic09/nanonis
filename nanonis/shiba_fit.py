@@ -14,7 +14,7 @@ import colorcet as cc
 import csv
 import numpy as np
 import pickle
-from lmfit.models import LorentzianModel, ConstantModel, GaussianModel, PolynomialModel
+# from lmfit.models import LorentzianModel, ConstantModel, GaussianModel, PolynomialModel
 plt.rcParams.update({'font.size': 12})
 plt.rcParams["figure.figsize"] = [10,5]
 #rc('font',**{'family':'sans-serif','sans-serif':['Helvetica']})

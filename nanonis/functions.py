@@ -1,7 +1,7 @@
 import numpy as np
 from nanonis import distributions
 import scipy.signal as signal
-from lmfit.models import VoigtModel
+# from lmfit.models import VoigtModel
 from scipy import constants as const
 import matplotlib.pyplot as plt
 
@@ -57,27 +57,27 @@ def getOffset2(data):
 	plt.show()
 
 
-def fitVoigt(data, filtered, indices):
-	gmodel = VoigtModel()
-	center = []
-	height = []
-	for i in indices:
-		index = (np.abs(data.bias-filtered.bias[i])).argmin()
-		if data.bias[index]>=-1.4E-3 and data.bias[index]<=1.4E-3:
-			indexO = (np.abs(data.bias-data.bias[index]-1.5E-4)).argmin()
-			indexF = (np.abs(data.bias-data.bias[index]+1.5E-4)).argmin()
-			xdata = data.bias[indexO:indexF]
-			ydata = data.conductance[indexO:indexF]
-			params = gmodel.make_params(amplitude=ydata.max(),
-                            center=xdata.mean(),
-                            sigma=xdata.std())
-			result = gmodel.fit(ydata, params, x=xdata)
-			parameters = result.params.valuesdict()
-			center = np.append(center, parameters['center'])
-			height = np.append(height,parameters['height'])
-	if len(center) == 2:
-		suma = {'PP1':center[0],'PP2':center[1],'HP1':height[0],'HP2':height[1],'SPEC':data.filename}
-		return suma
+# def fitVoigt(data, filtered, indices):
+# 	gmodel = VoigtModel()
+# 	center = []
+# 	height = []
+# 	for i in indices:
+# 		index = (np.abs(data.bias-filtered.bias[i])).argmin()
+# 		if data.bias[index]>=-1.4E-3 and data.bias[index]<=1.4E-3:
+# 			indexO = (np.abs(data.bias-data.bias[index]-1.5E-4)).argmin()
+# 			indexF = (np.abs(data.bias-data.bias[index]+1.5E-4)).argmin()
+# 			xdata = data.bias[indexO:indexF]
+# 			ydata = data.conductance[indexO:indexF]
+# 			params = gmodel.make_params(amplitude=ydata.max(),
+#                             center=xdata.mean(),
+#                             sigma=xdata.std())
+# 			result = gmodel.fit(ydata, params, x=xdata)
+# 			parameters = result.params.valuesdict()
+# 			center = np.append(center, parameters['center'])
+# 			height = np.append(height,parameters['height'])
+# 	if len(center) == 2:
+# 		suma = {'PP1':center[0],'PP2':center[1],'HP1':height[0],'HP2':height[1],'SPEC':data.filename}
+# 		return suma
 
 def rotatePoint(point, angle):
 	x = point[0]*np.cos(np.deg2rad(angle))-point[1]*np.sin(np.deg2rad(angle))

@@ -82,17 +82,17 @@ def load_obj(name ):
 def didv(axs):
     if type(axs) == type(np.zeros(2)):
         for ax in axs:
-            ax.set_xlabel('Bias (mV)',fontname="Arial")
-            ax.set_ylabel('dI/dV '+r'(G$_N$)',fontname="Arial")
+            ax.set_xlabel('Bias (mV)',fontname="sans-serif")
+            ax.set_ylabel('dI/dV '+r'(G$_N$)',fontname="sans-serif")
             ax.tick_params(axis='both',direction='in')
     else:
-        axs.set_xlabel('Bias (mV)',fontname="Arial")
-        axs.set_ylabel('dI/dV '+r'(G$_N$)',fontname="Arial")
+        axs.set_xlabel('Bias (mV)',fontname="sans-serif")
+        axs.set_ylabel('dI/dV '+r'(G$_N$)',fontname="sans-serif")
         axs.tick_params(axis='both',direction='in')
 
 def didv_p():
-        plt.xlabel('Bias (mV)',fontname="Arial")
-        plt.ylabel('dI/dV '+r'(G$_N$)',fontname="Arial")
+        plt.xlabel('Bias (mV)',fontname="sans-serif")
+        plt.ylabel('dI/dV '+r'(G$_N$)',fontname="sans-serif")
         plt.tick_params(axis='both',direction='in')
 
 def didv_dec(axs):
