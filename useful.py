@@ -95,6 +95,13 @@ def didv_p():
         plt.ylabel('dI/dV '+r'(G$_N$)',fontname="Arial")
         plt.tick_params(axis='both',direction='in')
 
+class save_fig():
+    def __init__(self):
+        self.f_l = 0
+    def save(self):
+        plt.savefig(ink_out+'F{}.svg'.format(self.f_l))
+        self.f_l += 1
+
 def didv_dec(axs):
     if type(axs) == type(np.zeros(2)):
         for ax in axs:
