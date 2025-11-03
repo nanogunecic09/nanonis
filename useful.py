@@ -8,6 +8,7 @@ from matplotlib.colors import LinearSegmentedColormap
 import matplotlib
 
 from scipy.ndimage import gaussian_filter
+from scipy.signal import savgol_filter
 from scipy.interpolate import interp1d
 #to get a list of measurement filenames given:
 # path, staticname eg.: 'S211026_', indexes: (1,200) and estension (.dat default) 
@@ -82,28 +83,39 @@ def load_obj(name ):
 def didv(axs):
     if type(axs) == type(np.zeros(2)):
         for ax in axs:
-            ax.set_xlabel('Bias (mV)',fontname="Arial")
+            ax.set_xlabel('Bias voltage (mV)',fontname="Arial")
             ax.set_ylabel('dI/dV '+r'(G$_N$)',fontname="Arial")
             ax.tick_params(axis='both',direction='in')
     else:
-        axs.set_xlabel('Bias (mV)',fontname="Arial")
+        axs.set_xlabel('Bias voltage (mV)',fontname="Arial")
+        axs.set_ylabel('dI/dV '+r'(G$_N$)',fontname="Arial")
+        axs.tick_params(axis='both',direction='in')
+
+def didv_curr(axs):
+    if type(axs) == type(np.zeros(2)):
+        for ax in axs:
+            ax.set_xlabel('Bias current (nA)',fontname="Arial")
+            ax.set_ylabel('V (mV)',fontname="Arial")
+            ax.tick_params(axis='both',direction='in')
+    else:
+        axs.set_xlabel('Bias voltage (mV)',fontname="Arial")
         axs.set_ylabel('dI/dV '+r'(G$_N$)',fontname="Arial")
         axs.tick_params(axis='both',direction='in')
 
 def didv_p():
-        plt.xlabel('Bias (mV)',fontname="Arial")
+        plt.xlabel('Bias voltage (mV)',fontname="Arial")
         plt.ylabel('dI/dV '+r'(G$_N$)',fontname="Arial")
         plt.tick_params(axis='both',direction='in')
 
 def didv_dec(axs):
     if type(axs) == type(np.zeros(2)):
         for ax in axs:
-            ax.set_xlabel('Bias (mV)')
-            ax.set_ylabel('dI/dV dec. '+r'(G$_N$)')
+            ax.set_xlabel('E-E'+r'$_F$ (meV)')
+            ax.set_ylabel('LDOS '+r'$(\rho_N)$')
             ax.tick_params(axis='both',direction='in')
     else:
         axs.set_xlabel('E-E'+r'$_F$ (meV)')
-        axs.set_ylabel('dI/dV dec. '+r'(G$_N$)')
+        axs.set_ylabel('LDOS '+r'$(\rho_N)$')
         axs.tick_params(axis='both',direction='in')
 
 def inner(axs):
@@ -132,11 +144,11 @@ def energyFind(bias, energy):
 
 
 
-def data_smooth(x,y,order=1):
+def data_smooth(x,y,order=5,window=15):
     interp_func = interp1d(x, y, kind='cubic')
     new_x = np.linspace(x.min(),x.max(),2000)
     int_y = interp_func(new_x)
-    yy = gaussian_filter(int_y,order)
+    yy = savgol_filter(int_y,window,order)
     return new_x,yy
 
 
@@ -287,3 +299,10 @@ def explore(map):
 
     plt.show()
 
+import os
+
+def find_file(filename, search_path):
+    for root, dirs, files in os.walk(search_path):
+        if filename in files:
+            return os.path.join(root, filename)
+    return None

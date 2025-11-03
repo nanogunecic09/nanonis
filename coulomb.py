@@ -46,22 +46,23 @@ def fermi(T,x):
 def E0(C1,C2,V,n,Q0,Delta):
     return (n+Q0)**2/(2*(C1+C2))+(1-(-1)**(n))*Delta/2
 
-def E1(C1,C2,V,n,Q0):
+def E1(C1,C2,V,n,Q0,Delta):
     k=C2/(C1+C2)
-    return k*V+(n+Q0-1/2)/(C1+C2)
+    return k*V+(n+Q0-1/2)/(C1+C2)+k*(1-(-1)**(n))*Delta/2
+    
 
-def E2(C1,C2,V,n,Q0):
+def E2(C1,C2,V,n,Q0,Delta):
     k=C1/(C1+C2)
-    return k*V+(n+Q0-1/2)/(C1+C2)
+    return k*V+(n+Q0-1/2)/(C1+C2)+k*(1-(-1)**(n))*Delta/2
 
 
 def Gamma1D(V,R1,C1,C2,n,Q0,Delta,delta_t,delta_s,T,eta):
-    a,b=np.meshgrid(x_int,E1(C1,C2,V,n,Q0))
+    a,b=np.meshgrid(x_int,E1(C1,C2,V,n,Q0,Delta))
     t=a+b
     return np.dot( bcs_i(Delta,t,eta,n)*(fermi(T,-t)),bcsf )/R1
 
-def Gamma2D(V,R2,C1,C2,n,Q0,delta_s,delta_t,T,eta):
-    a,b=np.meshgrid(x_int,E2(C1,C2,V,-n,-Q0))
+def Gamma2D(V,R2,C1,C2,n,Q0,Delta,delta_s,delta_t,T,eta):
+    a,b=np.meshgrid(x_int,E2(C1,C2,V,-n,-Q0,Delta))
     t=a+b
     if np.mod(n,2)==0:
         return np.dot(bcs(delta_s,t,eta)*(fermi(T,-t)),bcsif_even)/R2
@@ -231,8 +232,8 @@ def fitter(fname,initial_params=None,off=0):
         ax7_s = plt.Slider(ax7,'Delta',0,1.5,valinit=params['Delta'])
         ax8_s = plt.Slider(ax8,'Delta_t',0,1.5,valinit=params['Delta_t'])
         ax9_s = plt.Slider(ax9,'Delta_s',0,1.5,valinit=params['Delta_s'])
-        ax10_s = plt.Slider(ax10,'eta',0.01,0.2,valinit=params['eta'])
-        ax11_s = plt.Slider(ax11,'eta_t',0.01,0.2,valinit=0.05)
+        ax10_s = plt.Slider(ax10,'eta',0.001,0.2,valinit=params['eta'])
+        ax11_s = plt.Slider(ax11,'eta_t',0.001,0.2,valinit=0.05)
 
     def update(val):
         ax.clear()

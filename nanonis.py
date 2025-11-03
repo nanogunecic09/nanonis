@@ -68,6 +68,19 @@ def readDAT(filename):
     data = read_csv(filename, sep="\t", skiprows = skipR)
     return data, header
 
+def readDAT_header(filename):
+    header = dict()
+    with open(filename) as f:
+        for i, line in enumerate(f):
+            if '[DATA]' in line:
+                skipR = i+1
+                break
+            else: skipR = 0
+            values = line.split('\t')
+            if len(values) == 3:
+                header[values[0]] = values[1]
+    return header
+
 def read3DS(filename):
     header = dict()
     data = dict()
@@ -341,6 +354,8 @@ class biasSpectroscopy():
             self.conductanceColumn = 'LI Demod 1 X [AVG] (A)'
         if 'SRY (V)' in self.data:
             self.sry = self.data['SRY (V)']
+        if 'Input 3 (V)' in self.data:
+            self.conductance = self.data['Input 3 (V)']
         elif 'SRX [AVG] (V)' in self.data:
             self.conductance = self.data['SRX [AVG] (V)']
             self.conductanceColumn = 'SRX [AVG] (V)'
@@ -417,6 +432,11 @@ class biasSpectroscopy():
     def biasOffset(self, offset):
         self.data['Bias calc (V)'] = self.data['Bias calc (V)']-offset
 
+    def bias_compensate(self,factor):
+            compensation = np.linspace(1,factor,int(len(self.bias)/2))
+            self.bias[0:np.int(len(self.bias)/2)] = self.bias[0:np.int(len(self.bias)/2)]*np.flip(compensation)
+            self.bias[np.int(len(self.bias)/2):] = self.bias[np.int(len(self.bias)/2):]*compensation
+        
 
     def normalizeRange(self, range): #normalize data given an energy range
         index = []
@@ -500,6 +520,12 @@ class biasSpectroscopy():
     def dec_normalizeTo(self,energy):
         index = (abs(self.bias_dec - energy)).idxmin()
         self.conductance_dec = self.conductance_dec/self.conductance_dec[index]
+
+    def VI_normalize(self,curr):
+        index = (abs(self.curr - curr)).argmin()
+        self.biasVI_b = self.biasVI_b/self.biasVI_b[index]
+        self.biasVI_f = self.biasVI_f/self.biasVI_f[index]
+
 
     def R_calc(self):
         off_f = self.biasVI_f[np.abs(self.bias-0).argmin()]
