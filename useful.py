@@ -49,6 +49,14 @@ def avg_cond_decon(filenames):
     return bias,conductance_avg/conductance_avg[0]
 
 
+class save_fig():
+	def __init__(self):
+		self.f_l = 0
+	def save(self):
+		plt.savefig('C:/Users/strivini/Desktop/inkout/'+'F{}.svg'.format(self.f_l))
+		self.f_l += 1
+
+
 def set_size_cm(w,h, ax=None):
     """ w, h: width, height in cm """
     cm = 1/2.54
@@ -78,6 +86,49 @@ def save_obj(obj, name ):
 def load_obj(name ):
     with open( name + '.pkl', 'rb') as f:
         return pickle.load(f)
+import matplotlib.pyplot as plt
+from matplotlib.widgets import Slider
+
+def add_clim_sliders(fig, ax, im, pad_bottom=0.25):
+    """
+    Add interactive sliders to control vmin and vmax of an imshow plot.
+    
+    Parameters
+    ----------
+    fig : matplotlib.figure.Figure
+        The figure containing the plot.
+    ax : matplotlib.axes.Axes
+        The axis where the image is shown.
+    im : matplotlib.image.AxesImage
+        The object returned by imshow().
+    pad_bottom : float
+        Space to reserve at the bottom for sliders (default 0.25).
+    """
+
+    # Adjust bottom space
+    fig.subplots_adjust(bottom=pad_bottom)
+    
+    # Current color limits
+    vmin0, vmax0 = im.get_clim()
+    data = im.get_array()
+    dmin, dmax = data.min(), data.max()
+
+    # Slider axes
+    ax_vmin = fig.add_axes([0.15, 0.1, 0.65, 0.03])
+    ax_vmax = fig.add_axes([0.15, 0.05, 0.65, 0.03])
+
+    # Sliders
+    s_vmin = Slider(ax_vmin, 'vmin', dmin, dmax, valinit=vmin0)
+    s_vmax = Slider(ax_vmax, 'vmax', dmin, dmax, valinit=vmax0)
+
+    # Update function
+    def update(val):
+        im.set_clim(vmin=s_vmin.val, vmax=s_vmax.val)
+        fig.canvas.draw_idle()
+
+    s_vmin.on_changed(update)
+    s_vmax.on_changed(update)
+    return s_vmin, s_vmax
 
 
 def didv(axs):
