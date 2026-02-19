@@ -1,4 +1,3 @@
-from re import T
 from scipy.signal import savgol_filter
 from scipy.interpolate import interp1d
 from superconductor import dynes_curve, dynes_curve_diff, dynes_wrong,coulomb,dynesdos, fdd,dynes_javi

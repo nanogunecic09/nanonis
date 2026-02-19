@@ -149,8 +149,8 @@ def didv_curr(axs):
             ax.set_ylabel('V (mV)',fontname="Arial")
             ax.tick_params(axis='both',direction='in')
     else:
-        axs.set_xlabel('Bias voltage (mV)',fontname="Arial")
-        axs.set_ylabel('dI/dV '+r'(G$_N$)',fontname="Arial")
+        axs.set_xlabel('Bias current (nA)',fontname="Arial")
+        axs.set_ylabel('V (mV)',fontname="Arial")
         axs.tick_params(axis='both',direction='in')
 
 def didv_p():

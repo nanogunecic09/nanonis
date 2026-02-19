@@ -8,7 +8,6 @@ from pandas import DataFrame, read_csv
 from dateutil.parser import parse
 from scipy import interpolate
 import struct
-import colorcet as cc
 import pandas as pd
 from scipy.signal import savgol_filter
 from scipy.interpolate import interp1d
@@ -349,9 +348,12 @@ class biasSpectroscopy():
         if 'LI Demod 1 X (A)' in self.data:
             self.conductance = self.data['LI Demod 1 X (A)']
             self.conductanceColumn = 'LI Demod 1 X (A)'
-        if 'LI Demod 1 X [AVG] (A)' in self.data:
-            self.conductance = self.data['LI Demod 1 X [AVG] (A)']
-            self.conductanceColumn = 'LI Demod 1 X [AVG] (A)'
+        if 'LI Demod 1 X (A)' in self.data:
+            self.conductance = self.data['LI Demod 1 X (A)']
+            self.conductanceColumn = 'LI Demod 1 X (A)'
+        if 'LI Demod 1 X [bwd] (A)' in self.data:
+            self.conductanceb = self.data['LI Demod 1 X [bwd] (A)']
+            self.conductancebColumn = 'LI Demod 1 X [bwd] (A)'
         if 'SRY (V)' in self.data:
             self.sry = self.data['SRY (V)']
         if 'Input 3 (V)' in self.data:
@@ -365,6 +367,9 @@ class biasSpectroscopy():
         if 'SRX [bwd] (V)' in self.data:
             self.conductanceb = self.data['SRX [bwd] (V)']
             self.conductancebColumn = 'SRX [bwd] (V)'
+        if 'LI Demod 1 R [bwd] (V)' in self.data:
+            self.conductanceb = self.data['LI Demod 1 R [bwd] (V)']
+            self.conductancebColumn = 'LI Demod 1 R [bwd] (V)'
         if 'SRY [bwd] (V)' in self.data:
             self.sryb = self.data['SRY [bwd] (V)']
         if 'SRX2nd [AVG] (V)' in self.data:
@@ -853,4 +858,31 @@ class linescan3ds():
             conductanceCut = self.conductance[i][index[0]:index[1]]
             avg = mean(conductanceCut)
             self.conductance[i][:] = self.conductance[i][:]/avg
+
+
+class didv_set(biasSpectroscopy):
+    
+    def __init__(self):
+        pass
+    def load_set(self,fnames,normalize=False,normalize_range = [4e-3,5e-3]):
+        self.conductance_set = []
+        self.current_set = []
+        self.biasVI_f_set = []
+        self.biasVI_b_set = []
+        self.Z_set = []
+        self.R_set = []
+        for f in fnames:
+            self.load(f)
+            if normalize == True:
+                self.normalizeRange_symm(normalize_range)
+            self.conductance_set.append(self.conductance)
+            self.current_set.append(self.current)
+            # self.biasVI_b_set.append(self.biasVI_b)
+            # self.biasVI_f_set.append(self.biasVI_f)
+            self.Z_set = self.z
+            self.R_set = self.current[0]/self.bias[0]
+        self.biasVI_f_set = np.array(self.biasVI_f_set)
+        self.biasVI_b_set = np.array(self.biasVI_b_set)
+        self.current_set = np.array(self.current_set)
+        self.conductance_set = np.fliplr(np.array(self.conductance_set))
 

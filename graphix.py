@@ -12,7 +12,6 @@ import glob as glob
 from matplotlib.widgets import Slider
 import os
 import pandas as pd
-import colorcet as cc
 from lmfit import Model
 from scipy import stats
 import useful as uf

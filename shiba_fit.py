@@ -10,7 +10,6 @@ from tkinter import filedialog
 from matplotlib import rc
 from scipy.signal import savgol_filter
 import glob
-import colorcet as cc
 import csv
 import numpy as np
 import pickle

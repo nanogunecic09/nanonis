@@ -15,7 +15,7 @@ class TG():
 	experimental dI/dV spectrum of a superconducting junction.
 	"""
 	
-	def __init__(self, f=20, V_RF=1e-3,V_px=400,R_load=1e6):
+	def __init__(self, f=20, V_RF=1e-3,V_px=400,R_load=1e6,N=1000,interpN=5000,V_max=1e-3,norm=[3.4e-3,3.5e-3],imax=5e-9,nptsVI=200,offset=0):
 		"""
 		Initialize TG parameters.
 
@@ -32,9 +32,16 @@ class TG():
 		self.f = f            # RF frequency (GHz)
 		self.R_load = R_load
 		self.V_px = V_px
+		self.N = N
+		self.interpN = interpN
+		self.V_max = V_max
+		self.norm = norm
+		self.imax = imax
+		self.nptsVI = nptsVI
+		self.offset = offset
 		pass
 
-	def load(self, file, N=2000, V_max=2e-3,interpN=2000,norm=[4e-3,5e-3],imax = 10e-9):
+	def load(self, file):
 		"""
 		Load an experimental dI/dV spectrum and extend it symmetrically.
 
@@ -49,9 +56,7 @@ class TG():
 		N : int
 			Number of extra points added on each side of the spectrum.
 		"""
-		self.interpN = interpN
-		self.imax = imax
-		self.norm = norm
+		N = self.N
 		x, y = self.fast_cond(file)  # Load the experimental data
 		spac = x[0] - x[1]          # Voltage spacing between points
 		# Create extended voltage array, symmetric around zero
@@ -74,12 +79,12 @@ class TG():
 		self.x_ext = x_ext
 		self.y_ext = y_ext
 		# Create an interpolation function (continuous dI/dV over bias)
-		self.x_int = np.linspace(-V_max, V_max, interpN)  # Bias interpolation grid (for TG integration)
-		self.V_max = V_max
+		self.x_int = np.linspace(-self.V_max, self.V_max, self.interpN)  # Bias interpolation grid (for TG integration)
+		self.V_max = self.V_max
 		self.x_y_interp = sc.interpolate.interp1d(x_ext, y_ext)
 		return x_ext,y_ext
 
-	def load_curr(self, file, N=2000, V_max=2e-3,interpN=2000,norm=[4e-3,5e-3],imax = 10e-9):
+	def load_curr(self, file):
 		"""
 		Load an experimental dI/dV spectrum and extend it symmetrically.
 
@@ -94,10 +99,11 @@ class TG():
 		N : int
 			Number of extra points added on each side of the spectrum.
 		"""
-		self.V_max = V_max
-		self.interpN = interpN
-		self.norm = norm
-		self.imax = imax
+		V_max = self.V_max
+		interpN = self.interpN
+		norm = self.norm
+		imax = self.imax
+		N = self.N
 		x, y = self.fast_cur(file)  # Load the experimental data
 		self.curr_max = y.max()
 		spac = x[0] - x[1]          # Voltage spacing between points
@@ -121,15 +127,47 @@ class TG():
 		# Create an interpolation function (continuous dI/dV over bias)
 		self.x_int = np.linspace(-V_max, V_max, interpN)  # Bias interpolation grid (for TG integration)
 		self.x_y_interp = sc.interpolate.interp1d(x_ext, y_ext)
-		return x_ext,y_ext		
+		return x_ext,y_ext
 	
-	def load_VI(self, file, N=2000, V_max=2e-3,interpN=2000,norm=[4e-3,5e-3],imax = 10e-9): # to load from VI data
+	def loadxy(self,x,y): # to load from given x and y data
+		V_max = self.V_max
+		interpN = self.interpN
+		norm = self.norm
+		imax = self.imax
+		N = self.N
+		x, y = x, y
+		self.curr_max = y.max()
+		self.R = x[0]/y[0]
+		spac = x[0] - x[1]          # Voltage spacing between points
+		# Create extended voltage array, symmetric around zero
+		x_ext = np.arange(x[-1] - N * spac, x[0] + (N +1) * spac, spac)
+		# Initialize extended current
+		y_ext = x_ext/(self.R)
+		# Center experimental data around zero bias in the extended grid
+		a = self.find_nearest(x_ext, 0)
 
-		self.interpN = interpN
-		self.norm = norm
-		self.imax = imax
-		self.V_max = V_max
-		
+		if a%10 == 0:
+			y_ext[- a - len(y)//2 : 1+ a + len(y)//2] = np.flip(y)
+			x_ext = np.arange(x[-1] - N * spac, x[0] + (N +1) * spac, spac)
+			# print('attention')
+		else:
+			y_ext[-1 - a - len(y)//2 : 1 + a + len(y)//2] = np.flip(y)
+
+		# Store extended arrays for later use
+		self.x_ext = x_ext
+		self.y_ext = y_ext
+		# Create an interpolation function (continuous dI/dV over bias)
+		self.x_int = np.linspace(-V_max, V_max, interpN)  # Bias interpolation grid (for TG integration)
+		self.x_y_interp = sc.interpolate.interp1d(x_ext, y_ext)
+		return x_ext,y_ext
+
+	def load_VI(self, file): # to load from VI data
+
+		interpN = self.interpN
+		norm = self.norm
+		imax = self.imax
+		V_max = self.V_max
+		N = self.N
 		  # Load the experimental data
 		spectra = nanonis.biasSpectroscopy()
 		spectra.load(file)
@@ -137,7 +175,7 @@ class TG():
 		# spectra.normalizeRange_symm(self.norm)
 		
 		x = spectra.biasVI_f.to_numpy()
-		y = 1/spectra.conductance.to_numpy()
+		y = 1/spectra.conductance.to_numpy() # convert to dI/dV
 		y = y/y[0]
 		self.R = x[0]/y[0]
 		self.curr_max = y.max()
@@ -147,7 +185,7 @@ class TG():
 		x_ext = np.arange( -N * spac,  (N ) * spac, spac)
 		# Initialize extended conductance with 1 (background level)
 		y_ext = np.zeros(len(x_ext))+1
-		print(len(x_ext),len(y_ext))
+		# print(len(x_ext),len(y_ext))
 		# Center experimental data around zero bias in the extended grid
 		a = self.find_nearest(x_ext, 0)
 
@@ -162,7 +200,7 @@ class TG():
 		self.y_ext = y_ext
 		# Create an interpolation function (continuous dI/dV over bias)
 		self.x_int = np.linspace(-V_max, V_max, interpN)  # Bias interpolation grid (for TG integration)
-		print(len(x_ext),len(y_ext))
+		# print(len(x_ext),len(y_ext))
 		self.x_y_interp = sc.interpolate.interp1d(x_ext, y_ext)
 		return x_ext,y_ext		
 	
@@ -192,17 +230,16 @@ class TG():
 		self.map = np.array(map)  # Store the final TG map as a 2D array
 		return np.array(map)
 	
-	def load_RFmap(self,fnames, N=2000, V_max=1e-3,interpN=2000,norm=[4e-3,5e-3],imax = 2-9): #laod an measured tien godon map (current and transform to VI to apply TG shapiro)
-		self.interpN = interpN
-		self.V_max = V_max
-		self.imax = imax
-		self.norm = norm
+	def load_RFmap(self,fnames): #laod an measured tien godon map (current and transform to VI to apply TG shapiro)
+		interpN = self.interpN
+		V_max = self.V_max
+		imax = self.imax
+		norm = self.norm
+		N = self.N
 		map = []
 		for f in fnames:
-			x,y = self.load_curr(f, N=N, V_max=V_max,interpN=interpN,norm=norm,imax=imax)
-
-			map.append(y)
-
+			self.load_curr(f)
+			map.append(self.x_y_interp(self.x_int))
 		self.map = np.array(map)
 		return map
 
@@ -229,6 +266,11 @@ class TG():
 		spectra.load(file)
 		x = np.array(spectra.bias)
 		y = np.array(spectra.current)
+		# idx = np.abs(self.offset)
+		# y = np.roll(np.array(spectra.current), self.offset)
+		# x = np.array(x[idx:-idx])
+		# y = np.array(y[idx:-idx])
+
 		self.R = x[0]/y[0]
 		return x, y
 
@@ -258,14 +300,13 @@ class TG():
 		X-axis: bias voltage (mV)
 		Y-axis: RF amplitude (arbitrary units)
 		"""
-		f, ax = plt.subplots(1)
+		self.f, self.ax = plt.subplots(1)
 		if gradient == False:
-			im = ax.imshow(self.map, aspect='auto',extent=[self.V_max*1e3,-self.V_max*1e3,0,self.V_RF])
+			self.im = self.ax.imshow(np.flipud(self.map), aspect='auto',extent=[self.V_max*1e3,-self.V_max*1e3,0,self.V_RF])
 		if gradient == True:
-			im = ax.imshow(np.gradient(self.map)[0], aspect='auto')
-		uf.add_clim_sliders(f,ax,im)
-		ax.set_xlabel('Bias (mV)')
-		ax.set_ylabel('Power (arbitrary)')
+			self.im = self.ax.imshow(np.flipud(np.gradient(self.map)[1]), aspect='auto')
+		self.ax.set_xlabel('Bias (mV)')
+		self.ax.set_ylabel('Power (arbitrary)')
 
 	def plot_power(self,gradient=False):
 		"""
@@ -290,6 +331,7 @@ class TG():
 
 		n=0
 		for i in range(0,self.map.shape[0]):
+			print(n)
 			shapiro_map_fwd.append(self.calc_VI(self.x_int,self.map[n,:])[1])
 			shapiro_map_bwd.append(self.calc_VI(self.x_int,self.map[n,:])[2])
 			n+=1
@@ -302,14 +344,14 @@ class TG():
 	
 	def calc_VI(self,bias,curr):
 
-		didvn=spsg.savgol_filter(curr,15,2,deriv=1,delta=np.ediff1d(bias)[0])
-		curr=spsg.savgol_filter(curr,15,2)
+		didvn=spsg.savgol_filter(curr,15,4,deriv=1,delta=np.ediff1d(bias)[0])
+		curr=spsg.savgol_filter(curr,15,4)
 
 		imax=self.imax
 		prec=1e-7
-		npts=200
+		self.nptsVI=200
 
-		ibiass=np.linspace(-imax,imax,npts)
+		ibiass=np.linspace(-imax,imax,self.nptsVI)
 		bias=bias[np.abs(curr)<imax] #cut according to current smaller than imax
 		didvn=didvn[np.abs(curr)<imax]
 		curr=curr[np.abs(curr)<imax]
@@ -319,6 +361,7 @@ class TG():
 		acurr=curri(abias) #the interpolated current at the given precision
 		voltsfwd=[]
 		voltsbwd=[]
+
 		for n,ibias in enumerate(ibiass): #the imposed bias currents
 			ill=self.iloadline(abias,ibias) #current at the intended ibias for the range of resistor voltages
 			ncross=np.argwhere(np.diff(np.sign(ill - acurr))).flatten() #index where the ll crosses the interpolated current
@@ -329,17 +372,17 @@ class TG():
 			
 		voltsfwd=np.array(voltsfwd)
 		voltsbwd=np.array(voltsbwd)
+		self.abiass = abias
 		return ibiass*1e9,voltsfwd, voltsbwd,bias,curr
 	
 	def load_line_check(self,fname):
 		bs=nanonis.biasSpectroscopy()
 		bs.load(fname)
-
 		bias=bs.data["Bias calc (V)"]
 		curr=bs.data["Current (A)"]
-		didvn=spsg.savgol_filter(curr,15,2,deriv=1,delta=np.ediff1d(bias)[0])
+		didvn=spsg.savgol_filter(curr,5,2,deriv=1,delta=np.ediff1d(bias)[0])
 		curr=spsg.savgol_filter(curr,15,2)
-		lix=bs.data["LI Demod 1 X (A)"]
+		lix=bs.conductance
 		didv=lix/(float(bs.header["Lock-in>Amplitude"])*1.5) #Correction factor from comparison to didvn
 
 		R=1e6
@@ -347,9 +390,8 @@ class TG():
 
 		prec=1e-7
 		npts=200
-		dec=1
+		dec=3
 		f=5e9
-		print(2*const.e*f/1e-9)
 		amps=np.linspace(0,10e-9,100)
 		kmax=10
 
@@ -372,22 +414,23 @@ class TG():
 		voltsbwd=[]
 		for n,ibias in enumerate(ibiass): #the imposed bias currents
 			ill=self.iloadline(abias,ibias) #current at the intended ibias for the range of resistor voltages
-			
-			ncross=np.argwhere     (np.diff(np.sign(ill - acurr))).flatten() #index where the ll crosses the interpolated current
+			ncross=np.argwhere(np.diff(np.sign(ill - acurr))).flatten() #index where the ll crosses the interpolated current
 			ucross=abias[ncross]
 			icross=acurr[ncross]
 			
 			voltsfwd.append(np.min(ucross))
+
 			voltsbwd.append(np.max(ucross))
 			
 			if n%dec==0 and len(ncross)>1:
-				axs[0,0].plot(abias*1e3,ill*1e9,c="k",lw=0.1)
+				axs[0,0].plot(abias*1e3,ill*1e9,c="k",lw=0.3)
 				axs[0,0].plot(ucross*1e3,icross*1e9,".",c="r",ms=3)
 		voltsfwd=np.array(voltsfwd)
 		voltsbwd=np.array(voltsbwd)
 
-		axs[0,1].plot(ibiass*1e9,voltsfwd*1e3,".-",label="fwd",ms=3)
-		axs[0,1].plot(ibiass*1e9,voltsbwd*1e3,".-",label="bwd",ms=3)
+		axs[0,1].plot(ibiass*1e9,voltsfwd*1e3,".-",label="fwd",ms=3,color='C0')
+		axs[0,1].plot(ibiass*1e9,voltsbwd*1e3,".-",label="bwd",ms=3,color='C1')
+		self.LL_VI = (ibiass,voltsfwd,voltsbwd)
 		axs[1,1].plot(ibiass*1e9,np.gradient(voltsfwd,ibiass)*1e-6,label="fwd")
 		axs[1,1].plot(ibiass*1e9,np.gradient(voltsbwd,ibiass)*1e-6,label="bwd")
 
@@ -413,18 +456,158 @@ class TG():
 		axs[1,1].set_ylabel('dV/dI (MOhms)')
 		axs[1,1].set_title("Calculated dV/dI curves")
 
-	def plot_shapiro(self,bwd_fwd = 'fwd'):
+	def plot_LL(self,x,y):
+		
+		bias=x
+		curr=y
+		# curr=spsg.savgol_filter(curr,15,2)
+
+		imax=self.imax
+
+		prec=1e-7
+		npts=200
+		dec=3
+
+		ibiass=np.linspace(-imax,imax,npts)
+
+		bias=bias[np.abs(curr)<imax] #cut according to current smaller than imax
+		curr=curr[np.abs(curr)<imax]
+
+		curri=spi.interp1d(bias,curr,bounds_error=False,fill_value="extrapolate")
+		abias=np.arange(np.min(bias),np.max(bias),prec) #voltage range at the given precision
+
+		fig,axs=plt.subplots(2,1,constrained_layout=True)
+
+		acurr=curri(abias) #the interpolated current at the given precision
+		axs[0].plot(abias*1e3,acurr*1e9,"-")
+
+		voltsfwd=[]
+		voltsbwd=[]
+		for n,ibias in enumerate(ibiass): #the imposed bias currents
+			ill=self.iloadline(abias,ibias) #current at the intended ibias for the range of resistor voltages
+			ncross=np.argwhere(np.diff(np.sign(ill - acurr))).flatten() #index where the ll crosses the interpolated current
+			ucross=np.array(abias[ncross])
+			icross=np.array(acurr[ncross])
+			voltsfwd.append(np.min(ucross))
+			voltsbwd.append(np.max(ucross))
+				
+			
+			if n%dec==0 and len(ncross)>1:
+				axs[0].plot(abias*1e3,ill*1e9,c="k",lw=0.3)
+				axs[0].plot(ucross*1e3,icross*1e9,".",c="r",ms=3)
+		voltsfwd=np.array(voltsfwd)
+		voltsbwd=np.array(voltsbwd)
+
+		axs[1].plot(ibiass*1e9,voltsfwd*1e3,label="fwd",ms=3)
+		axs[1].plot(ibiass*1e9,voltsbwd*1e3,label="bwd",ms=3)
+		# self.LL_VI = (ibiass,voltsfwd,voltsbwd)
+		# axs[1,1].plot(ibiass*1e9,np.gradient(voltsfwd,ibiass)*1e-6,label="fwd")
+		# axs[1,1].plot(ibiass*1e9,np.gradient(voltsbwd,ibiass)*1e-6,label="bwd")
+
+		axs[0].set_xlabel("Voltage bias (mV)")
+		axs[1].set_xlabel("Current bias (nA)")
+		axs[0].set_ylabel("Current (nA)")
+		axs[1].set_ylabel("Voltage (mV)")
+		# axs[0].set_xlim(-0.4,0.4)
+		# axs[1].set_xlim(-7,7)
+		# axs[0].set_ylim(-7,7)
+
+
+		uf.set_size_cm(8,10,ax=axs[0])
+
+		
+
+		return (ibiass*1e9,voltsfwd*1e3,1e3*voltsbwd),(abias*1e3,ill*1e9),(ucross*1e3,icross*1e9)
+
+	def load_line_check_direct(self,x,y):
+
+
+		bias=x
+		curr=y
+		# curr=spsg.savgol_filter(curr,15,2)
+
+		imax=self.imax
+
+		prec=1e-7
+		npts=200
+		dec=1
+
+		ibiass=np.linspace(-imax,imax,npts)
+
+		bias=bias[np.abs(curr)<imax] #cut according to current smaller than imax
+		curr=curr[np.abs(curr)<imax]
+
+		curri=spi.interp1d(bias,curr,bounds_error=False,fill_value="extrapolate")
+		abias=np.arange(np.min(bias),np.max(bias),prec) #voltage range at the given precision
+
+		# fig,axs=plt.subplots(2,2,constrained_layout=True)
+
+		acurr=curri(abias) #the interpolated current at the given precision
+		# axs[0,0].plot(abias*1e3,acurr*1e9,"-")
+
+		voltsfwd=[]
+		voltsbwd=[]
+		for n,ibias in enumerate(ibiass): #the imposed bias currents
+			ill=self.iloadline(abias,ibias) #current at the intended ibias for the range of resistor voltages
+			ncross=np.argwhere(np.diff(np.sign(ill - acurr))).flatten() #index where the ll crosses the interpolated current
+			ucross=abias[ncross]
+			icross=acurr[ncross]
+			
+			voltsfwd.append(np.min(ucross))
+			voltsbwd.append(np.max(ucross))
+			
+			# if n%dec==0 and len(ncross)>1:
+			# 	axs[0,0].plot(abias*1e3,ill*1e9,c="k",lw=0.1)
+			# 	axs[0,0].plot(ucross*1e3,icross*1e9,".",c="r",ms=3)
+		voltsfwd=np.array(voltsfwd)
+		voltsbwd=np.array(voltsbwd)
+
+		# axs[0,1].plot(ibiass*1e9,voltsfwd*1e3,label="fwd",ms=3)
+		# axs[0,1].plot(ibiass*1e9,voltsbwd*1e3,label="bwd",ms=3)
+		self.LL_VI = (ibiass,voltsfwd,voltsbwd)
+		# axs[1,1].plot(ibiass*1e9,np.gradient(voltsfwd,ibiass)*1e-6,label="fwd")
+		# axs[1,1].plot(ibiass*1e9,np.gradient(voltsbwd,ibiass)*1e-6,label="bwd")
+
+
+		# axs[0,1].legend()
+		# axs[1,1].legend()
+
+		# axs[0,0].set_xlabel("Sample bias $V$ (mV)")
+		# axs[0,0].set_title("Measured I-V curve")
+		# axs[0,0].set_ylabel("Current $I$ (nA)")
+
+		# axs[1,0].set_xlabel("Sample bias $V$ (mV)")
+		# axs[1,0].set_ylabel("$dI/dV$ ($uS)")
+		# axs[1,0].set_title("Measured dI/dV curve")
+
+		# axs[0,1].set_xlabel("Bias current $V_0/R$ (nA)")
+		# axs[0,1].set_title("Calculated V-I curves")
+
+		# axs[1,1].set_xlabel("Bias current $V_0/R$ (nA)")
+		# axs[0,1].set_ylabel("Sample voltage $V$ (mV)")
+		# axs[1,1].set_ylabel('dV/dI (MOhms)')
+		# axs[1,1].set_title("Calculated dV/dI curves")
+		return (ibiass*1e9,voltsfwd*1e3,1e3*voltsbwd),(abias*1e3,ill*1e9),(ucross*1e3,icross*1e9)
+
+
+	def plot_shapiro(self,gradientOff=False,bwd_fwd = 'fwd'):
 		n=0
 		if bwd_fwd == 'fwd':
 			i = self.shapiro_map_fwd
 		elif bwd_fwd == 'bwd':
 			i = self.shapiro_map_bwd
-		f,ax = plt.subplots(1)
-		grad = np.gradient(i)[0]
-		im = ax.imshow(np.flipud(grad),aspect='auto',extent=[-15,15,0,0.8],vmin=grad.min()*0.5,vmax=grad.max()*0.2,interpolation='nearest')
-		ax.set_xlabel('Current bias (nA)')
-		ax.set_ylabel('V_RF (mV)')
-		ax.set_xlim(-self.imax*1e9,self.imax*1e9)
-		ax.set_ylim(0,0.4)
-		uf.add_clim_sliders(f,ax,im)
+		f,self.ax = plt.subplots(1)
+		if gradientOff == True:
+			grad = np.array(i)
+		else:
+			grad = np.gradient(i,axis=1)
+		grad = grad/grad.max()
+		im = self.ax.imshow(np.flipud(grad),aspect='auto',extent=[-15,15,0,0.8],vmin=0,vmax=grad.max()*0.1)
+		self.ax.set_xlabel('Current bias (nA)')
+		self.ax.set_ylabel('V_RF (mV)')
+		self.ax.set_xlim(-self.imax*1e9,self.imax*1e9)
+		self.ax.set_ylim(0,0.4)
+		plt.colorbar(im,ax=self.ax,label='dV/dI (arb. units)')
+		uf.add_clim_sliders(f,self.ax,im)
+		uf.set_size_cm(8,5,ax=self.ax)
 		pass
