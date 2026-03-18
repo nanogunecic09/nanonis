@@ -306,9 +306,12 @@ class simpleScan():
             self.mpenergies = mparameters['Energy (eV)']
         if 'Setpoint' in mparameters:
             self.mpsetpoint = mparameters['Setpoint']
-        if ':Multipass-Config:' in header:
+        if ':Multipass-Config:' in header:  
             self.multipass = True
-        
+        if 'Z [m] (bwd)' in self.data:
+            self.zb = self.data['Z [m] (bwd)']
+        if 'Z [m] (fwd)' in self.data:
+            self.zf = self.data['Z [m] (fwd)']            
     
     #Define the real position in scan space.
     #The corners of the square are defined as

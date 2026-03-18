@@ -28,14 +28,27 @@ import useful as uf
 # LStype change allows to load different LS formats. Can be: 'normal', the conventional set of .dat files, 'wsxm' a txt file with a LS extracted from WSXM, .3ds a linescan saved in binary.
 
 
-class topograpy(nanonis.simpleScan):
-    def __init__(self,fname):
-        self.load(fname)
-    
-    def treat_paper(self):
-        return
-    
+class topography(nanonis.simpleScan):
+    def __init__(self):
+        pass
+    def add_scalebar(self,ax,data_matrix):
+        scalebar = AnchoredSizeBar(ax.transData,
+                           20, '20000 m', 'lower left', 
+                           pad=0.1,
+                           color='white',
+                           num_pixels_x = data_matrix.shape[1],
+                           frameon=False,
+                           size_vertical=1)
 
+        ax.add_artist(scalebar)
+        
+    def plot(self):
+        f,ax = plt.subplots(1)
+        im = ax.imshow(self.zf*1e12-self.zf.min()*1e12)
+        ax.set_axis_off()
+        self.add_scalebar(ax)
+        cbar = plt.colorbar(im)
+        cbar.set_label('Height (pm)', rotation=270, labelpad=15)
 
 class lineProfile():
 
