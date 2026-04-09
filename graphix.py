@@ -15,6 +15,7 @@ import pandas as pd
 from lmfit import Model
 from scipy import stats
 import useful as uf
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 #added: now the linescans cuts save properly in order
 #       new class for the lineprofile cuts, given a folder with cuts it plot them
 #       new class for plotting general image with sliders
@@ -29,18 +30,57 @@ import useful as uf
 
 
 class topography(nanonis.simpleScan):
-    def __init__(self):
-        pass
-    def add_scalebar(self,ax,data_matrix):
-        scalebar = AnchoredSizeBar(ax.transData,
-                           20, '20000 m', 'lower left', 
-                           pad=0.1,
-                           color='white',
-                           num_pixels_x = data_matrix.shape[1],
-                           frameon=False,
-                           size_vertical=1)
+    def __init__(self, file_path):
+        self.file_path = file_path
+        np.float, np.int, np.complex = float, int, complex
 
-        ax.add_artist(scalebar)
+        #acá cargamos los datos
+        self.scan = nap.read.Scan(self.file_path)
+        header = self.scan.header
+        data = self.scan.signals['Z']['forward']
+
+        self._get_data()
+
+    def _get_data(self):
+        pass
+
+
+    def add_scalebar(self):
+        ideal_m = width_m*0.2
+        #Para las unidades del scalebar, usamos el ideal_m para ver si es pm, nm o um:
+        if ideal_m < 1.5e-9:   unit, factor = "pm", 1e-12
+        elif ideal_m < 1.5e-6: unit, factor = "nm", 1e-9
+        else:                  unit, factor = "µm", 1e-6
+
+        val_units = ideal_m / factor
+        exponent = 10**np.floor(np.log10(val_units))
+        norm_val = val_units / exponent
+        
+        #acá aproximamos para que sea más estético el número que aparece en el scalebar
+        if norm_val < 1.5: nv = 1
+        elif norm_val < 3.5: nv = 2
+        elif norm_val < 7.5: nv = 5
+        else: nv = 10
+        final_val = nv * exponent
+        longitud_barra_nm = (final_val * factor) * 1e9
+        texto_escala = f"{int(final_val)} {unit}" if final_val >= 1 else f"{final_val:.1f} {unit}"
+
+
+
+
+        scalebar = AnchoredSizeBar(
+        ax.transData,
+        longitud_barra_nm, 
+        texto_escala, 
+        'lower left', 
+        pad=1.0, # Un poco más de margen
+        color='white',
+        frameon=False,
+        size_vertical=y_nm/90, 
+        fontproperties={'size': 14, 'weight': 'bold'}
+    )
+        
+    ax.add_artist(scalebar)
         
     def plot(self):
         f,ax = plt.subplots(1)
