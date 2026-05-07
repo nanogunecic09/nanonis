@@ -15,7 +15,7 @@ class TG():
 	experimental dI/dV spectrum of a superconducting junction.
 	"""
 	
-	def __init__(self, f=20, V_RF=1e-3,V_px=400,R_load=1e6,N=1000,interpN=5000,V_max=1e-3,norm=[3.4e-3,3.5e-3],imax=5e-9,nptsVI=200,offset=0):
+	def __init__(self, f=20,V_RF0 =0, V_RF=1e-3,V_px=400,R_load=1e6,N=1000,interpN=5000,V_max=1e-3,norm=[3.4e-3,3.5e-3],imax=5e-9,nptsVI=200,offset=0):
 		"""
 		Initialize TG parameters.
 
@@ -29,6 +29,7 @@ class TG():
 			Maximum bias voltage for interpolation grid (in Volts).
 		"""
 		self.V_RF = V_RF      # RF amplitude
+		self.V_RF0 = V_RF0
 		self.f = f            # RF frequency (GHz)
 		self.R_load = R_load
 		self.V_px = V_px
@@ -62,7 +63,7 @@ class TG():
 		# Create extended voltage array, symmetric around zero
 		x_ext = np.arange(x[-1] - N * spac, x[0] + (N +1) * spac, spac)
 		# Initialize extended conductance with 1 (background level)
-		y_ext = np.zeros(y.shape[0] + 2 * N) + 1
+		y_ext = np.zeros(y.shape[0] + 2 * N) + y[0]
 		# Center experimental data around zero bias in the extended grid
 		a = self.find_nearest(x_ext, 0)
 
@@ -76,10 +77,10 @@ class TG():
 		# Store extended arrays for later use
 
 
-		self.x_ext = x_ext
+		self.x_ext = x_ext-self.offset
 		self.y_ext = y_ext
 		# Create an interpolation function (continuous dI/dV over bias)
-		self.x_int = np.linspace(-self.V_max, self.V_max, self.interpN)  # Bias interpolation grid (for TG integration)
+		self.x_int = np.linspace(-self.V_max, self.V_max, self.interpN) -self.offset # Bias interpolation grid (for TG integration)
 		self.V_max = self.V_max
 		self.x_y_interp = sc.interpolate.interp1d(x_ext, y_ext)
 		return x_ext,y_ext
@@ -217,14 +218,14 @@ class TG():
 		# Photon energy in Volts: hf / (2e)
 		en = const.h * self.f * 1e9 / (2 * const.e)
 		# Sweep the RF amplitude up to V_RF
-		V = np.linspace(0, self.V_RF, self.V_px)
+		V = np.linspace(self.V_RF0, self.V_RF, self.V_px)
 		self.V_RF_arr = V
 
 		for j in V:  # iterate over RF amplitudes
 			y_rf = np.zeros(self.interpN)
 			# Sum over photon sidebands using Bessel weighting
 			for i in range(-200, 200):
-				y_rf += sc.special.jv(i, j/en)**2 * self.x_y_interp(self.x_int + 2 * i * en)
+				y_rf += sc.special.jv(i, j/en)**2 * self.x_y_interp(self.x_int + i * en)
 			map.append(y_rf)
 		
 		self.map = np.array(map)  # Store the final TG map as a 2D array
@@ -251,7 +252,8 @@ class TG():
 		"""
 		spectra = nanonis.biasSpectroscopy()
 		spectra.load(file)
-		spectra.normalizeRange(self.norm)
+		# spectra.normalizeRange(self.norm)
+		spectra.biasOffset(100e-6)
 		x = np.array(spectra.bias)
 		y = np.array(spectra.conductance)
 		return x, y
@@ -304,7 +306,7 @@ class TG():
 		if gradient == False:
 			self.im = self.ax.imshow(np.flipud(self.map), aspect='auto',extent=[self.V_max*1e3,-self.V_max*1e3,0,self.V_RF])
 		if gradient == True:
-			self.im = self.ax.imshow(np.flipud(np.gradient(self.map)[1]), aspect='auto')
+			self.im = self.ax.imshow(np.flipud(np.gradient(self.map)[1]),extent=[self.V_max*1e3,-self.V_max*1e3,0,self.V_RF], aspect='auto')
 		self.ax.set_xlabel('Bias (mV)')
 		self.ax.set_ylabel('Power (arbitrary)')
 
@@ -325,18 +327,18 @@ class TG():
 		ax.set_xlabel('Bias (mV)')
 		ax.set_ylabel('Power (arbitrary)')
 
-	def TG_shapiro(self): # calculate the IV power dependence with tien gordon
+	def TG_shapiro(self,filter=0): # calculate the IV power dependence with tien gordon
 		shapiro_map_fwd = []
 		shapiro_map_bwd = []
-
+		self.map = uf.gaussian_filter(self.map,filter)
 		n=0
 		for i in range(0,self.map.shape[0]):
 			print(n)
 			shapiro_map_fwd.append(self.calc_VI(self.x_int,self.map[n,:])[1])
 			shapiro_map_bwd.append(self.calc_VI(self.x_int,self.map[n,:])[2])
 			n+=1
-		self.shapiro_map_fwd = shapiro_map_fwd
-		self.shapiro_map_bwd = shapiro_map_bwd
+		self.shapiro_map_fwd = np.array(shapiro_map_fwd)
+		self.shapiro_map_bwd = np.array(shapiro_map_bwd)
 		return shapiro_map_fwd,shapiro_map_bwd
 	
 	def iloadline(self,abias,ibias):
@@ -458,10 +460,10 @@ class TG():
 
 	def plot_LL(self,x,y):
 		
-		bias=x
-		curr=y
-		# curr=spsg.savgol_filter(curr,15,2)
 
+		# didvn=spsg.savgol_filter(y,15,4,deriv=1,delta=np.ediff1d(x)[0])
+		curr=spsg.savgol_filter(y,15,4)
+		bias = x
 		imax=self.imax
 
 		prec=1e-7
@@ -602,12 +604,12 @@ class TG():
 		else:
 			grad = np.gradient(i,axis=1)
 		grad = grad/grad.max()
-		im = self.ax.imshow(np.flipud(grad),aspect='auto',extent=[-15,15,0,0.8],vmin=0,vmax=grad.max()*0.1)
+		im = self.ax.imshow(np.flipud(grad),aspect='auto',extent=[-15,15,0,0.8],interpolation='nearest',vmin=0,vmax=grad.max()*0.05)
 		self.ax.set_xlabel('Current bias (nA)')
 		self.ax.set_ylabel('V_RF (mV)')
 		self.ax.set_xlim(-self.imax*1e9,self.imax*1e9)
 		self.ax.set_ylim(0,0.4)
 		plt.colorbar(im,ax=self.ax,label='dV/dI (arb. units)')
-		uf.add_clim_sliders(f,self.ax,im)
+		# uf.add_clim_sliders(f,self.ax,im)
 		uf.set_size_cm(8,5,ax=self.ax)
 		pass
