@@ -67,6 +67,25 @@ def readDAT(filename):
     data = read_csv(filename, sep="\t", skiprows = skipR)
     return data, header
 
+def readCUR(filename):
+    header = dict()
+    with open(filename) as f:
+        for i, line in enumerate(f):
+            if '[Header end]' in line:
+                skipR = i + 1
+                break
+            else:
+                skipR = 0
+            values = line.strip().split(':')
+            if len(values) == 2:
+                header[values[0].strip()] = values[1].strip()
+    raw = read_csv(filename, sep=r'\s+', skiprows=skipR, header=None)
+
+    bias = raw.iloc[:, 0]
+    conductance = raw.iloc[:, 1::2]  # every other column starting from 1
+
+    return bias, conductance, header
+
 def readDAT_header(filename):
     header = dict()
     with open(filename) as f:
@@ -351,6 +370,9 @@ class biasSpectroscopy():
         if 'LI Demod 1 X (A)' in self.data:
             self.conductance = self.data['LI Demod 1 X (A)']
             self.conductanceColumn = 'LI Demod 1 X (A)'
+        if 'LI Demod 1 X (V)' in self.data:
+            self.conductance = self.data['LI Demod 1 X (V)']
+            self.conductanceColumn = 'LI Demod 1 X (V)'
         if 'LI Demod 1 X [bwd] (A)' in self.data:
             self.conductanceb = self.data['LI Demod 1 X [bwd] (A)']
             self.conductancebColumn = 'LI Demod 1 X [bwd] (A)'
@@ -434,6 +456,17 @@ class biasSpectroscopy():
             self.biasVI_f = self.data['Input 2 [AVG] [bwd] (V)']
         if 'Input 2 [AVG] (V)' in self.data:
             self.biasVI_b = self.data['Input 2 [AVG] (V)']
+
+    def loadCURR(self,fname):
+        self.bias, self.conductance, self.header = readCUR(fname)
+        self.filename = fname
+        dummy = self.filename.split("/")
+        self.name = dummy[-1]
+        if 'x' in self.data:
+            self.bias = 1e-3*self.data['x']
+        if 'y' in self.data:
+            self.conductance = self.data['y']
+
     def biasOffset(self, offset):
         self.data['Bias calc (V)'] = self.data['Bias calc (V)']-offset
 
@@ -543,6 +576,98 @@ class biasSpectroscopy():
 
     def current_cal(self):
         self.curr = np.flip(1e9*np.linspace(self.current.min(),self.current.max(),self.bias.shape[0]))
+
+
+    def calibrate_didv(self, tail_frac=0.15, poly_deg=2,
+                    use_both_tails=True):
+        """
+        Parameters
+        ----------
+        V         : 1D array, bias voltage [V], assumed sorted ascending
+        I         : 1D array, measured current [A]
+        dIdV_raw  : 1D array, raw lock-in dI/dV signal [arbitrary units, e.g. V]
+        tail_frac : fraction of points at each end used for the fit (e.g. 0.15 = 15%)
+        poly_deg  : polynomial degree for fitting I(V) in the tails (2 or 3 is typical)
+        use_both_tails : if True, use both negative and positive bias tails
+
+        Returns
+        -------
+        k        : calibration factor [S / (lock-in unit)]
+        G        : conductance trace in siemens, same length as V
+        info     : dict with diagnostics (k_neg, k_pos, residuals, mask used, ...)
+        """
+        V = self.bias
+        I = self.current
+        dIdV_raw = self.conductance
+
+        # sort by V just in case
+        order = np.argsort(V)
+        V, I, dIdV_raw = V[order], I[order], dIdV_raw[order]
+
+        n = len(V)
+        n_tail = max(int(round(tail_frac * n)), poly_deg + 2)
+
+        # --- pick tail windows ---
+        neg_idx = np.arange(0, n_tail)             # most negative bias
+        pos_idx = np.arange(n - n_tail, n)         # most positive bias
+
+        def _fit_tail(idx):
+            """Polynomial fit to I(V) on the index window, return numerical dI/dV."""
+            Vw = V[idx]
+            Iw = I[idx]
+            coeffs = np.polyfit(Vw, Iw, poly_deg)
+            dcoeffs = np.polyder(coeffs)
+            return np.polyval(dcoeffs, Vw)         # dI/dV from the fit, in S
+
+        def _solve_k(didv_true, didv_raw):
+            """Least-squares slope through origin: didv_true = k * didv_raw."""
+            # k = sum(x*y) / sum(x*x)
+            num = np.sum(didv_raw * didv_true)
+            den = np.sum(didv_raw * didv_raw)
+            k = num / den
+            resid = didv_true - k * didv_raw
+            return k, resid
+
+        info = {}
+
+        # negative tail
+        didv_true_neg = _fit_tail(neg_idx)
+        didv_raw_neg  = dIdV_raw[neg_idx]
+        k_neg, r_neg  = _solve_k(didv_true_neg, didv_raw_neg)
+        info["k_neg"] = k_neg
+        info["resid_neg_rms"] = float(np.sqrt(np.mean(r_neg**2)))
+
+        # positive tail
+        didv_true_pos = _fit_tail(pos_idx)
+        didv_raw_pos  = dIdV_raw[pos_idx]
+        k_pos, r_pos  = _solve_k(didv_true_pos, didv_raw_pos)
+        info["k_pos"] = k_pos
+        info["resid_pos_rms"] = float(np.sqrt(np.mean(r_pos**2)))
+
+        # combined fit
+        if use_both_tails:
+            didv_true = np.concatenate([didv_true_neg, didv_true_pos])
+            didv_raw  = np.concatenate([didv_raw_neg,  didv_raw_pos])
+            k, resid  = _solve_k(didv_true, didv_raw)
+        else:
+            k = 0.5 * (k_neg + k_pos)
+            resid = None
+
+        info["k"] = k
+        info["tail_indices"] = (neg_idx, pos_idx)
+
+        # asymmetry check (warn if tails disagree by > 10 %)
+        asym = abs(k_pos - k_neg) / (0.5 * abs(k_pos + k_neg) + 1e-30)
+        info["tail_asymmetry"] = float(asym)
+        if asym > 0.10:
+            info["warning"] = (f"Tails disagree by {asym*100:.1f}% — "
+                            "check that both ends are in a smooth regime.")
+
+        G = k * dIdV_raw                          # conductance in siemens
+        self.conductance_cal = G
+        return k, np.flip(G), info
+
+
 class linescan():
 
     def __init__(self):
@@ -778,6 +903,21 @@ class Zapproach():
                 avg = mean(conductanceCut)
                 self.conductance[i][:] = self.conductance[i][:]/avg
 
+        def normalizeRange_symm(self, E_range):
+            i1 = self.energyFind(E_range[1])
+            i2 = self.energyFind(E_range[0])
+            start_neg, end_neg = min(i1, i2), max(i1, i2)
+
+            i3 = self.energyFind(-E_range[1])
+            i4 = self.energyFind(-E_range[0])
+            start_pos, end_pos = min(i3, i4), max(i3, i4)
+
+            for i in range(len(self.name)):
+                conductanceCut_neg = self.conductance[i][start_neg:end_neg]
+                conductanceCut_pos = self.conductance[i][start_pos:end_pos]
+                avg = mean(np.concatenate((conductanceCut_neg, conductanceCut_pos)))
+                self.conductance[i][:] = self.conductance[i][:] / avg
+        
 class grid():
 #Falta hacer bien el MLS
     def __init__(self):
@@ -864,18 +1004,22 @@ class didv_set(biasSpectroscopy):
     
     def __init__(self):
         pass
-    def load_set(self,fnames,normalize=False,normalize_range = [4e-3,5e-3]):
+    def load_set(self,fnames,normalize=False,normalize_range = [4e-3,5e-3],offset=0):
         self.conductance_set = []
+        self.conductance_set_b = []
         self.current_set = []
         self.biasVI_f_set = []
         self.biasVI_b_set = []
-        self.Z_set = []
+        self.offset = offset
+        # self.Z_set = []
         self.R_set = []
         for f in fnames:
             self.load(f)
+            self.biasOffset(self.offset)
             if normalize == True:
                 self.normalizeRange_symm(normalize_range)
             self.conductance_set.append(self.conductance)
+            # self.conductance_set_b.append(self.conductanceb)
             self.current_set.append(self.current)
             # self.biasVI_b_set.append(self.biasVI_b)
             # self.biasVI_f_set.append(self.biasVI_f)
@@ -885,4 +1029,5 @@ class didv_set(biasSpectroscopy):
         self.biasVI_b_set = np.array(self.biasVI_b_set)
         self.current_set = np.array(self.current_set)
         self.conductance_set = np.fliplr(np.array(self.conductance_set))
+        # self.conductance_set_b = np.fliplr(np.array(self.conductance_set_b))
 
