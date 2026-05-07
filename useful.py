@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 import pickle
 import time
 import numpy as np
-
+import pandas as pd
 import ast
 from matplotlib.colors import LinearSegmentedColormap
 import matplotlib
@@ -53,7 +53,7 @@ class save_fig():
 	def __init__(self):
 		self.f_l = 0
 	def save(self):
-		plt.savefig('C:/Users/strivini/Desktop/inkout/'+'F{}.svg'.format(self.f_l))
+		plt.savefig('C:/Users/strivini/Desktop/inkout/'+'F{}.svg'.format(self.f_l),dpi=600)
 		self.f_l += 1
 
 
@@ -250,6 +250,22 @@ def cmap_fromLut(fname): # converts a .lut file given its path to a LinearSegmen
         'blue':  [(x/255.0, y/255.0, y/255.0) for x, y in points_B]
     })
     return cmap_lut
+
+def specTodf(filenames,offset=0,norm=[-3e-3,3e-3]):
+    data = pd.DataFrame()
+    count = 0
+    for filename in filenames:
+        spectra.load(filename)
+        spectra.normalizeRange(norm)
+        spectra.biasOffset(offset)
+        if count == 0:
+            data[0]=spectra.bias*1e3
+            data[1]=spectra.conductance
+            count += 2
+            continue
+        data[count]=spectra.conductance
+        count+=1
+    return data
 
 
 def export_colormap(colormap, filename):
