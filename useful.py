@@ -2,12 +2,13 @@ import matplotlib.pyplot as plt
 import pickle
 import time
 import numpy as np
-
+import pandas as pd
 import ast
 from matplotlib.colors import LinearSegmentedColormap
 import matplotlib
 
 from scipy.ndimage import gaussian_filter
+from scipy.signal import savgol_filter
 from scipy.interpolate import interp1d
 #to get a list of measurement filenames given:
 # path, staticname eg.: 'S211026_', indexes: (1,200) and estension (.dat default) 
@@ -48,6 +49,13 @@ def avg_cond_decon(filenames):
     return bias,conductance_avg/conductance_avg[0]
 
 
+class save_fig():
+	def __init__(self):
+		self.f_l = 0
+	def save(self):
+		plt.savefig('D:/OneDrive - Asociacion Cic Nanogune/Desktop/inkout/'+'F{}.svg'.format(self.f_l),dpi=600)
+		self.f_l += 1
+
 def set_size_cm(w,h, ax=None):
     """ w, h: width, height in cm """
     cm = 1/2.54
@@ -77,21 +85,75 @@ def save_obj(obj, name ):
 def load_obj(name ):
     with open( name + '.pkl', 'rb') as f:
         return pickle.load(f)
+import matplotlib.pyplot as plt
+from matplotlib.widgets import Slider
+
+def add_clim_sliders(fig, ax, im, pad_bottom=0.25):
+    """
+    Add interactive sliders to control vmin and vmax of an imshow plot.
+    
+    Parameters
+    ----------
+    fig : matplotlib.figure.Figure
+        The figure containing the plot.
+    ax : matplotlib.axes.Axes
+        The axis where the image is shown.
+    im : matplotlib.image.AxesImage
+        The object returned by imshow().
+    pad_bottom : float
+        Space to reserve at the bottom for sliders (default 0.25).
+    """
+
+    # Adjust bottom space
+    fig.subplots_adjust(bottom=pad_bottom)
+    
+    # Current color limits
+    vmin0, vmax0 = im.get_clim()
+    data = im.get_array()
+    dmin, dmax = data.min(), data.max()
+
+    # Slider axes
+    ax_vmin = fig.add_axes([0.15, 0.1, 0.65, 0.03])
+    ax_vmax = fig.add_axes([0.15, 0.05, 0.65, 0.03])
+
+    # Sliders
+    s_vmin = Slider(ax_vmin, 'vmin', dmin, dmax, valinit=vmin0)
+    s_vmax = Slider(ax_vmax, 'vmax', dmin, dmax, valinit=vmax0)
+
+    # Update function
+    def update(val):
+        im.set_clim(vmin=s_vmin.val, vmax=s_vmax.val)
+        fig.canvas.draw_idle()
+
+    s_vmin.on_changed(update)
+    s_vmax.on_changed(update)
+    return s_vmin, s_vmax
 
 
 def didv(axs):
     if type(axs) == type(np.zeros(2)):
         for ax in axs:
-            ax.set_xlabel('Bias (mV)',fontname="Arial")
+            ax.set_xlabel('Bias voltage (mV)',fontname="Arial")
             ax.set_ylabel('dI/dV '+r'(G$_N$)',fontname="Arial")
             ax.tick_params(axis='both',direction='in')
     else:
-        axs.set_xlabel('Bias (mV)',fontname="Arial")
+        axs.set_xlabel('Bias voltage (mV)',fontname="Arial")
         axs.set_ylabel('dI/dV '+r'(G$_N$)',fontname="Arial")
         axs.tick_params(axis='both',direction='in')
 
+def didv_curr(axs):
+    if type(axs) == type(np.zeros(2)):
+        for ax in axs:
+            ax.set_xlabel('Bias current (nA)',fontname="Arial")
+            ax.set_ylabel('V (mV)',fontname="Arial")
+            ax.tick_params(axis='both',direction='in')
+    else:
+        axs.set_xlabel('Bias current (nA)',fontname="Arial")
+        axs.set_ylabel('V (mV)',fontname="Arial")
+        axs.tick_params(axis='both',direction='in')
+
 def didv_p():
-        plt.xlabel('Bias (mV)',fontname="Arial")
+        plt.xlabel('Bias voltage (mV)',fontname="Arial")
         plt.ylabel('dI/dV '+r'(G$_N$)',fontname="Arial")
         plt.tick_params(axis='both',direction='in')
 
@@ -105,12 +167,12 @@ class save_fig():
 def didv_dec(axs):
     if type(axs) == type(np.zeros(2)):
         for ax in axs:
-            ax.set_xlabel('Bias (mV)')
-            ax.set_ylabel('dI/dV dec. '+r'(G$_N$)')
+            ax.set_xlabel('E-E'+r'$_F$ (meV)')
+            ax.set_ylabel('LDOS '+r'$(\rho_N)$')
             ax.tick_params(axis='both',direction='in')
     else:
         axs.set_xlabel('E-E'+r'$_F$ (meV)')
-        axs.set_ylabel('dI/dV dec. '+r'(G$_N$)')
+        axs.set_ylabel('LDOS '+r'$(\rho_N)$')
         axs.tick_params(axis='both',direction='in')
 
 def inner(axs):
@@ -139,11 +201,11 @@ def energyFind(bias, energy):
 
 
 
-def data_smooth(x,y,order=1):
+def data_smooth(x,y,order=5,window=15):
     interp_func = interp1d(x, y, kind='cubic')
     new_x = np.linspace(x.min(),x.max(),2000)
     int_y = interp_func(new_x)
-    yy = gaussian_filter(int_y,order)
+    yy = savgol_filter(int_y,window,order)
     return new_x,yy
 
 
@@ -194,6 +256,22 @@ def cmap_fromLut(fname): # converts a .lut file given its path to a LinearSegmen
         'blue':  [(x/255.0, y/255.0, y/255.0) for x, y in points_B]
     })
     return cmap_lut
+
+def specTodf(filenames,offset=0,norm=[-3e-3,3e-3]):
+    data = pd.DataFrame()
+    count = 0
+    for filename in filenames:
+        spectra.load(filename)
+        spectra.normalizeRange(norm)
+        spectra.biasOffset(offset)
+        if count == 0:
+            data[0]=spectra.bias*1e3
+            data[1]=spectra.conductance
+            count += 2
+            continue
+        data[count]=spectra.conductance
+        count+=1
+    return data
 
 
 def export_colormap(colormap, filename):
@@ -294,3 +372,10 @@ def explore(map):
 
     plt.show()
 
+import os
+
+def find_file(filename, search_path):
+    for root, dirs, files in os.walk(search_path):
+        if filename in files:
+            return os.path.join(root, filename)
+    return None

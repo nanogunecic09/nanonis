@@ -12,7 +12,6 @@ import glob as glob
 from matplotlib.widgets import Slider
 import os
 import pandas as pd
-import colorcet as cc
 from lmfit import Model
 from scipy import stats
 import useful as uf
@@ -27,6 +26,17 @@ import useful as uf
 # flipud='on' flips the map up-down
 # noline='on' is for loading datasets that are not linescans but we still want to plot them with imshow.
 # LStype change allows to load different LS formats. Can be: 'normal', the conventional set of .dat files, 'wsxm' a txt file with a LS extracted from WSXM, .3ds a linescan saved in binary.
+
+
+class topograpy(nanonis.simpleScan):
+    def __init__(self,fname):
+        self.load(fname)
+    
+    def treat_paper(self):
+        return
+    
+
+
 class lineProfile():
 
     def __init__(self,spac=0,categorical='python',plotmode='cmap',influence='off',range=0.1e-3,plugins='on',cutMode='line',flipud='off',LStype='normal'): # vmin/vmax colourscale, cut=True enables vertical cuts

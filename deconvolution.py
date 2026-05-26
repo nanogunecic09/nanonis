@@ -44,10 +44,10 @@ def extensions(bias,conductance,x_min,x_max,N):
     d=pd.Series(d)
     bias=pd.Series(bias)
     conductance=pd.Series(conductance)
-    bias=a.append(bias)
-    bias=bias.append(b)
-    conductance=c.append(conductance)
-    conductance=conductance.append(d)
+    bias=a._append(bias)
+    bias=bias._append(b)
+    conductance=c._append(conductance)
+    conductance=conductance._append(d)
     return [bias,conductance]
 
 # def dynesDeconvolute(bias,conductance, gap=1.30e-3, temperature=1.248, dynesParameter=40e-6, energyR=6E-3, spacing=50e-6,x_min=-3.0E-3,x_max=3.0E-3,N=1000, window=15,order=3,n=3000):

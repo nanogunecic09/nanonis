@@ -60,7 +60,7 @@ def fdd( E, mu, T): #fermi Dirac function
 
 
 def dynes_curve_diff(energy, Delta, dynesParameter):
-    dynesParameter = np.complex(0, dynesParameter)
+    dynesParameter = complex(0, dynesParameter)
     density_de = -np.sign(energy)*np.real(np.divide(np.square(Delta),np.power(np.square(energy-dynesParameter)-np.square(Delta), 1.5)))
     density_de = np.nan_to_num(density_de)
     return density_de
