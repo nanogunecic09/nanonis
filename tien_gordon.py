@@ -6,6 +6,7 @@ import scipy as sc
 import useful as uf
 import scipy.signal as spsg
 import scipy.interpolate as spi
+from scipy.interpolate import interp1d
 class TG():
 	"""
 	Thien-Gordon (TG) simulator for photon-assisted tunneling in STM spectroscopy.
@@ -15,7 +16,7 @@ class TG():
 	experimental dI/dV spectrum of a superconducting junction.
 	"""
 	
-	def __init__(self, f=20,V_RF0 =0, V_RF=1e-3,V_px=400,R_load=1e6,N=1000,interpN=5000,V_max=1e-3,norm=[3.4e-3,3.5e-3],imax=5e-9,nptsVI=200,offset=0):
+	def __init__(self, f=20,V_RF0 =0, V_RF=1e-3,V_px=400,R_load=1e6,N=1000,interpN=5000,V_max=1e-3,norm=[3.4e-3,3.5e-3],imax=5e-9,nptsVI=200,offset=0,R_cables=500):
 		"""
 		Initialize TG parameters.
 
@@ -40,39 +41,37 @@ class TG():
 		self.imax = imax
 		self.nptsVI = nptsVI
 		self.offset = offset
+		self.R_cables = R_cables
 		pass
 
-	def load(self, file):
-		"""
-		Load an experimental dI/dV spectrum and extend it symmetrically.
-
-		This ensures that when performing the Tien-Gordon convolution,
-		the interpolation remains valid even when shifting the bias
-		by multiple photon energies ±n*h*f/2e.
-
-		Parameters:
-		-----------
-		file : str
-			Path to Nanonis .dat file containing the bias and conductance.
-		N : int
-			Number of extra points added on each side of the spectrum.
-		"""
+	def load(self, file, correct_R=False):
 		N = self.N
-		x, y = self.fast_cond(file)  # Load the experimental data
-		spac = x[0] - x[1]          # Voltage spacing between points
-		# Create extended voltage array, symmetric around zero
-		x_ext = np.arange(x[-1] - N * spac, x[0] + (N +1) * spac, spac)
-		# Initialize extended conductance with 1 (background level)
-		y_ext = np.zeros(y.shape[0] + 2 * N) + y[0]
-		# Center experimental data around zero bias in the extended grid
-		a = self.find_nearest(x_ext, 0)
+		x, y, curr = self.fast_cond(file)
 
-		if a%10 == 0:
-			y_ext[- a - len(y)//2 : a + len(y)//2] = y
-			x_ext = np.arange(x[-1] - N * spac, x[0] + (N ) * spac, spac)
-			print('attention!')
+		if correct_R:
+			x, y = self.correct_resistance(x, curr, y)
 		else:
-			y_ext[-1 - a - len(y)//2 : 1 + a + len(y)//2] = y
+			if x[0] > x[-1]:
+				x    = x[::-1]
+				y    = y[::-1]
+				curr = curr[::-1]
+
+		spac       = x[1] - x[0]
+		half_width = N * spac
+		left_pad   = N + int(np.round(x[0]  / spac))   # points to the left of data
+		right_pad  = N - int(np.round(x[-1] / spac))   # points to the right of data
+		n_ext      = left_pad + len(y) + right_pad
+
+		x_ext = -half_width + np.arange(n_ext) * spac   # starts exactly at -N*spac
+
+		start = left_pad
+		end   = left_pad + len(y)
+
+		y_ext            = np.empty(n_ext)
+		y_ext[:start]    = y[0]
+		y_ext[start:end] = y
+		y_ext[end:]      = y[-1]
+
 
 		# Store extended arrays for later use
 
@@ -82,9 +81,28 @@ class TG():
 		# Create an interpolation function (continuous dI/dV over bias)
 		self.x_int = np.linspace(-self.V_max, self.V_max, self.interpN) -self.offset # Bias interpolation grid (for TG integration)
 		self.V_max = self.V_max
-		self.x_y_interp = sc.interpolate.interp1d(x_ext, y_ext)
+		self.x_y_interp = sc.interpolate.interp1d(
+			x_ext, y_ext,
+			kind='linear',
+			bounds_error=False,
+			fill_value=(y_ext[0], y_ext[-1])   # left and right edge values
+		)
 		return x_ext,y_ext
 
+	def correct_resistance(self, bias, current, conductance):
+		dx    = abs(bias[1] - bias[0])
+		v_cor = bias - self.R_cables * current
+
+		idx         = np.argsort(v_cor)
+		v_cor       = v_cor[idx]
+		conductance = conductance[idx]
+
+		# number of equidistant points that fit inside [v_cor[0], v_cor[-1]]
+		n    = int(np.floor((v_cor[-1] - v_cor[0]) / dx)) + 1
+		v_eq = v_cor[0] + dx * np.arange(n)
+
+		g_eq = interp1d(v_cor, conductance, kind='linear')(v_eq)
+		return v_eq, g_eq
 	def load_curr(self, file):
 		"""
 		Load an experimental dI/dV spectrum and extend it symmetrically.
@@ -256,7 +274,8 @@ class TG():
 		spectra.biasOffset(100e-6)
 		x = np.array(spectra.bias)
 		y = np.array(spectra.conductance)
-		return x, y
+		curr = np.array(spectra.current)
+		return x, y, curr
 	
 	def fast_cur(self, file):
 		"""
@@ -295,7 +314,7 @@ class TG():
 		y_ext[-1 - a - len(y)//2 : 1 + a + len(y)//2] = y
 		return x_ext, y_ext
 
-	def plot(self,gradient=False):
+	def plot(self,gradient=False,roll=False):
 		"""
 		Display the Tien-Gordon map as an image.
 
@@ -303,12 +322,19 @@ class TG():
 		Y-axis: RF amplitude (arbitrary units)
 		"""
 		self.f, self.ax = plt.subplots(1)
+		if roll:
+			self.map = np.roll(self.map,1,axis=1)
 		if gradient == False:
-			self.im = self.ax.imshow(np.flipud(self.map), aspect='auto',extent=[self.V_max*1e3,-self.V_max*1e3,0,self.V_RF])
+			self.im = self.ax.imshow(np.flipud(self.map/self.map.max()), aspect='auto',extent=[self.V_max*1e3,-self.V_max*1e3,0,self.V_RF*1e3])
 		if gradient == True:
-			self.im = self.ax.imshow(np.flipud(np.gradient(self.map)[1]),extent=[self.V_max*1e3,-self.V_max*1e3,0,self.V_RF], aspect='auto')
+			self.im = self.ax.imshow(np.flipud(np.gradient(self.map)[1]),extent=[self.V_max*1e3,-self.V_max*1e3,0,self.V_RF*1e3], aspect='auto')
 		self.ax.set_xlabel('Bias (mV)')
 		self.ax.set_ylabel('Power (arbitrary)')
+
+	def plot_IV_to_VI(self):
+		self.map_VI = 1/(1+self.map)
+		self.f, self.ax = plt.subplots(1)
+		self.im = plt.pcolormesh(self.x_int,self.V_RF_arr,self.map_VI)
 
 	def plot_power(self,gradient=False):
 		"""
