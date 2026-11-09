@@ -53,7 +53,7 @@ class save_fig():
 	def __init__(self):
 		self.f_l = 0
 	def save(self):
-		plt.savefig('D:/OneDrive - Asociacion Cic Nanogune/Desktop/inkout/'+'F{}.svg'.format(self.f_l),dpi=600)
+		plt.savefig('C:/Users/trst/OneDrive - empa.ch/Desktop/inkout'+'F{}.svg'.format(self.f_l),dpi=600)
 		self.f_l += 1
 
 def set_size_cm(w,h, ax=None):
@@ -161,7 +161,7 @@ class save_fig():
     def __init__(self):
         self.f_l = 0
     def save(self):
-        plt.savefig(ink_out+'F{}.svg'.format(self.f_l))
+        plt.savefig('C:/Users/trst/OneDrive - empa.ch/Desktop/inkout/'+'F{}.svg'.format(self.f_l))
         self.f_l += 1
 
 def didv_dec(axs):

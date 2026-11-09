@@ -89,6 +89,52 @@ class TG():
 		)
 		return x_ext,y_ext
 
+	def load_current(self, file, correct_R=False):
+		N = self.N
+		x, y, curr = self.fast_cond(file)
+
+		# use current instead of conductance
+		y = curr
+
+		if correct_R:
+			x, y = self.correct_resistance(x, curr, y)
+		else:
+			if x[0] > x[-1]:
+				x    = x[::-1]
+				y    = y[::-1]
+				curr = curr[::-1]
+
+		spac       = x[1] - x[0]
+		half_width = N * spac
+		left_pad   = N + int(np.round(x[0]  / spac))
+		right_pad  = N - int(np.round(x[-1] / spac))
+		n_ext      = left_pad + len(y) + right_pad
+
+		x_ext = -half_width + np.arange(n_ext) * spac
+
+		start = left_pad
+		end   = left_pad + len(y)
+
+		y_ext            = np.empty(n_ext)
+		y_ext[:start]    = y[0]
+		y_ext[start:end] = y
+		y_ext[end:]      = y[-1]
+
+		# Store extended arrays for later use
+		self.x_ext_I = x_ext - self.offset
+		self.y_ext_I = y_ext
+
+		# Bias interpolation grid (for TG integration)
+		self.x_int_I = np.linspace(-self.V_max, self.V_max, self.interpN) - self.offset
+
+		self.x_y_interp_I = sc.interpolate.interp1d(
+			x_ext, y_ext,
+			kind='linear',
+			bounds_error=False,
+			fill_value=(y_ext[0], y_ext[-1])
+		)
+		return x_ext, y_ext
+
 	def correct_resistance(self, bias, current, conductance):
 		dx    = abs(bias[1] - bias[0])
 		v_cor = bias - self.R_cables * current
@@ -103,6 +149,37 @@ class TG():
 
 		g_eq = interp1d(v_cor, conductance, kind='linear')(v_eq)
 		return v_eq, g_eq
+	
+	def correct_resistance_current(self, bias, current):
+		"""
+		Correct voltage axis for internal resistance and interpolate
+		current onto an equidistant grid with the original spacing.
+
+		Parameters
+		----------
+		bias    : 1D array, raw voltage bias
+		current : 1D array, measured current
+
+		Returns
+		-------
+		v_eq : 1D array, equidistant corrected voltage axis
+		i_eq : 1D array, current interpolated onto v_eq
+		"""
+		dx    = abs(bias[1] - bias[0])
+		v_cor = bias - self.R_cables * current
+
+		# sort by corrected voltage (handles non-monotonic current)
+		idx     = np.argsort(v_cor)
+		v_cor   = v_cor[idx]
+		current = current[idx]
+
+		# number of equidistant points that fit strictly inside [v_cor[0], v_cor[-1]]
+		n    = int(np.floor((v_cor[-1] - v_cor[0]) / dx)) + 1
+		v_eq = v_cor[0] + dx * np.arange(n)
+
+		i_eq = interp1d(v_cor, current, kind='linear')(v_eq)
+		return v_eq, i_eq
+
 	def load_curr(self, file):
 		"""
 		Load an experimental dI/dV spectrum and extend it symmetrically.
